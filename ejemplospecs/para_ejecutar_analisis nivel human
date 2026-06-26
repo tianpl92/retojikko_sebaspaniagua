@@ -1,0 +1,86 @@
+#Rol
+Arquitecto de software orientado en base de datos Postgresql
+
+
+
+#Context
+Se han generado varios archivos en formato SQL con esquemas de base de datos, en un proyecto ubicado en la ruta de trabajo ([rutatrabajo]) : "/home/sebasroot/generative_ai/retojikko_sebaspaniagua". 
+y el objetivo es analizar y realizar una calificación de acuerdo al contenido de esos esquemas generados.
+Se han generado 6 archivos SQL los cuales se describen en el archivo "runs.jsonl" en la ruta "[rutatrabajo]/ejemplospecs/03-analysis/" . en este archivo se indica el modelo de IA usado y el archivo de salida que estan ubicados en "[rutatrabajo]/ejemplospecs/outputs/".
+
+
+#Tabla para calificaciones (rubrica)
+Category	        Max	Score    What to check
+Structure	        30	        Required tables, FK relationships, no hallucinated tables
+Naming	            15	        snake_case, id/{table}_id, created_at/updated_at/deleted_at
+Integrity	        20	        PK/FK, NOT NULL, UNIQUE, soft delete, CASCADE/RESTRICT
+Comments	        15	        Tables and non-obvious decisions documented
+Query feasibility	10	        Key queries supported, indexes on FK + hot paths
+Spec adherence	    10	        Followed spec, no invented features
+
+
+
+
+#Acciones
+Analiza y lee el archivo runs.jsonl y realizar lo siguiente:
+    *Califica cada esquema generado de acuerdo a la tabla de rubrica presentada.
+    *Listar la calificación de cada archivo usando el siguiente formato:
+
+        schema file   | spec name           | model                                     |  score
+        name_file.sql | spec (a, or b or c) | model_name (owlalpha, nemotron, gpt5.5)   |  score_number
+
+    *Generar una matriz (tabla) 3x3 donde evidencies la calificacion de cada especificacion usada (spec) vs el modelo usado, usando el siguiente formato:
+
+                                   model_1_name    model_2_name    model_3_name    Spread
+            Spec A (minimal)       point_number    point_number    point_number    average
+            Spec B (balanced)      point_number    point_number    point_number    average
+            Spec C (comprehensive) point_number    point_number    point_number    average
+
+    *Generar los resultados en un archivo ANALYSIS.md (formato markdown) en la ruta "[rutatrabajo]/ejemplospecs/03-analysis/"
+
+
+
+
+#Role
+Software Architect specializing in PostgreSQL databases
+
+#Context
+Several SQL files containing database schemas have been generated in a project located in the working directory ([path]): "/home/sebasroot/generative_ai/retojikko_sebaspaniagua".
+
+The objective is to analyze and evaluate the content of these generated schemas.
+
+Nine SQL files have been generated, which are described in the "runs.jsonl" file located in "[path]/ejemplospecs/03-analysis/". This file specifies the AI ​​model used and the output file, which is located in "[path]/ejemplospecs/outputs/".
+
+#Rubric for grading
+| Category | Max Score | What to check |
+|---|---|---|
+| Structure | 30 | Required tables, FK relationships, no hallucinated tables |
+| Naming | 15 | snake_case, `id`/`{table}_id`, `created_at`/`updated_at`/`deleted_at` |
+| Integrity | 20 | PK/FK, NOT NULL, UNIQUE, soft delete, CASCADE/RESTRICT |
+| Comments | 15 | Tables and non-obvious decisions documented |
+| Query feasibility | 10 | Key queries supported, indexes on FK + hot paths |
+| Spec adherence | 10 | Followed spec, no invented features |
+
+#Actions
+Analyze and read the runs.json file and do the following:
+
+*Rate each generated schema according to the rubric table provided.
+
+*List the score for each file using the following format:
+
+schema file | spec name | model | score
+
+name_file.sql | spec (a, or b, or c) | model_name (owlalpha, nemotron, gpt5.5) | score_number
+
+*Generate a 3x3 matrix (table) showing the score of each specification used (spec) versus the model used, and calculate average points (pts) per spec type, using the following format:
+
+|   type spec    | model_1_name | model_2_name |model_3_name |Spread 
+Spec A (minimal) |point_number  | point_number |point_number | average pts
+
+Spec B (balanced) | point_number | point_number |point_number | average pts
+
+Spec C (comprehensive) | point_number | point_number | point_number | average pts
+
+*Generate the results in an ANALYSIS.md file (Markdown format) in the path "[path]/examplespecs/03-analysis/"
+
+but before, I'm concern about the fact you as agent act as judge and also as part generating the final conclusion with the inputs that I give you, what do you think? tell me before to proceed with anything, I want to be sure
