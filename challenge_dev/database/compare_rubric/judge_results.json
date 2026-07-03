@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "model": "gpt-5.5",
+      "sql_file": "public_calls_database_gpt55.sql",
+      "structure": 30,
+      "naming": 15,
+      "integrity": 20,
+      "comments": 15,
+      "query_feasibility": 10,
+      "spec_adherence": 10,
+      "total": 100,
+      "reasons": [
+        "Perfect adherence to all specifications.",
+        "Correctly implemented UUIDs, foreign keys, and required indexes.",
+        "Included all requested table and column comments.",
+        "Added professional enhancements like soft-delete columns and update triggers without violating the spec."
+      ]
+    },
+    {
+      "model": "openai/gpt-oss-20b:free",
+      "sql_file": "public_calls_database_gpt_oss.sql",
+      "structure": 30,
+      "naming": 15,
+      "integrity": 20,
+      "comments": 15,
+      "query_feasibility": 10,
+      "spec_adherence": 10,
+      "total": 100,
+      "reasons": [
+        "Fully compliant with the specification.",
+        "Correct data types used for primary and foreign keys.",
+        "All required indexes and comments are present.",
+        "Referential integrity actions are explicitly defined."
+      ]
+    },
+    {
+      "model": "gpt-5.4mini",
+      "sql_file": "public_calls_database_gpt54mini.sql",
+      "structure": 30,
+      "naming": 15,
+      "integrity": 20,
+      "comments": 15,
+      "query_feasibility": 10,
+      "spec_adherence": 10,
+      "total": 100,
+      "reasons": [
+        "Accurately implemented all tables and relationships.",
+        "Correctly handled the alphanumeric requirement for user_id using text type.",
+        "All required indexes and comments are present.",
+        "Strict adherence to the NOT NULL constraints specified for the association table."
+      ]
+    }
+  ]
+}

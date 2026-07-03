@@ -1,0 +1,23 @@
+[
+  {
+    "model": "gpt-5.5",
+    "model_id": "openai/gpt-5.5",
+    "file": "public_calls_database_gpt55.sql",
+    "status": "failed",
+    "error": "HTTP Error 402: Payment Required"
+  },
+  {
+    "model": "openai/gpt-oss-20b:free",
+    "model_id": "openai/gpt-oss-20b:free",
+    "file": "public_calls_database_gpt_oss.sql",
+    "status": "ok",
+    "chars": 4949
+  },
+  {
+    "model": "gpt-5.4mini",
+    "model_id": "openai/gpt-5.4-mini",
+    "file": "public_calls_database_gpt54mini.sql",
+    "status": "ok",
+    "chars": 5484
+  }
+]
