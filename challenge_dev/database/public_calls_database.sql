@@ -22,6 +22,7 @@ CREATE TABLE public.users (
     email varchar(320) NOT NULL,
     phone_number varchar(100),
     password text,
+    status char(2) not null DEFAULT 'AC',
     created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at timestamp with time zone
@@ -42,13 +43,13 @@ COMMENT ON COLUMN public.users.gender IS 'User gender, when provided.';
 COMMENT ON COLUMN public.users.email IS 'User email address used for login and contact lookup.';
 COMMENT ON COLUMN public.users.phone_number IS 'User phone number, when provided.';
 COMMENT ON COLUMN public.users.password IS 'User password or password reference used for authentication.';
+COMMENT ON COLUMN public.users.status IS 'AC for active user or IN for Inactive user';
 COMMENT ON COLUMN public.users.created_at IS 'Timestamp when the user record was created.';
 COMMENT ON COLUMN public.users.updated_at IS 'Timestamp when the user record was last updated.';
 COMMENT ON COLUMN public.users.deleted_at IS 'Timestamp when the user record was soft deleted, when applicable.';
 
 CREATE TABLE public.public_calls_proposals (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    id_del_proceso text NOT NULL,
+    id text PRIMARY KEY NOT NULL,
     nombre_del_procedimiento text NOT NULL,
     entidad text NOT NULL,
     nit_entidad text,
@@ -80,11 +81,9 @@ CREATE TABLE public.public_calls_proposals (
     numero_de_lotes integer,
     created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at timestamp with time zone,
-    CONSTRAINT uq_public_calls_proposals_id_del_proceso UNIQUE (id_del_proceso)
+    deleted_at timestamp with time zone
 );
 
-CREATE INDEX idx_public_calls_proposals_id_del_proceso ON public.public_calls_proposals (id_del_proceso);
 CREATE INDEX idx_public_calls_proposals_fase ON public.public_calls_proposals (fase);
 CREATE INDEX idx_public_calls_proposals_entidad ON public.public_calls_proposals (entidad);
 
@@ -94,8 +93,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.set_updated_at();
 
 COMMENT ON TABLE public.public_calls_proposals IS 'Stores centralized public calls for proposals from SECOP II with entity details, phases, and award data.';
-COMMENT ON COLUMN public.public_calls_proposals.id IS 'UUID primary identifier for the public call for proposals record.';
-COMMENT ON COLUMN public.public_calls_proposals.id_del_proceso IS 'Unique process ID from SECOP II platform.';
+COMMENT ON COLUMN public.public_calls_proposals.id IS 'Unique process ID from SECOP II platform.';
 COMMENT ON COLUMN public.public_calls_proposals.nombre_del_procedimiento IS 'Name of the procurement procedure.';
 COMMENT ON COLUMN public.public_calls_proposals.entidad IS 'Entity publishing the procurement process.';
 COMMENT ON COLUMN public.public_calls_proposals.nit_entidad IS 'Tax ID of the publishing entity.';
@@ -131,7 +129,7 @@ COMMENT ON COLUMN public.public_calls_proposals.deleted_at IS 'Timestamp when th
 
 CREATE TABLE public.public_call_user_associations (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    public_call_id uuid NOT NULL,
+    public_call_id text NOT NULL,
     user_id varchar(128) NOT NULL,
     association_date timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
