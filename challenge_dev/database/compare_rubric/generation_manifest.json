@@ -3,21 +3,21 @@
     "model": "gpt-5.5",
     "model_id": "openai/gpt-5.5",
     "file": "public_calls_database_gpt55.sql",
-    "status": "failed",
-    "error": "HTTP Error 402: Payment Required"
+    "status": "ok",
+    "chars": 9587
   },
   {
-    "model": "openai/gpt-oss-20b:free",
-    "model_id": "openai/gpt-oss-20b:free",
-    "file": "public_calls_database_gpt_oss.sql",
+    "model": "deepseek/deepseek-v4-pro",
+    "model_id": "deepseek/deepseek-v4-pro",
+    "file": "public_calls_database_v4pro.sql",
     "status": "ok",
-    "chars": 4949
+    "chars": 7488
   },
   {
-    "model": "gpt-5.4mini",
-    "model_id": "openai/gpt-5.4-mini",
-    "file": "public_calls_database_gpt54mini.sql",
+    "model": "GLM 4.7 Flash",
+    "model_id": "z-ai/glm-4.7-flash",
+    "file": "public_calls_database_glm47.sql",
     "status": "ok",
-    "chars": 5484
+    "chars": 6950
   }
 ]
