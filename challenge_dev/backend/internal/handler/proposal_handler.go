@@ -7,18 +7,18 @@ import (
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/service"
 )
 
-// ProposalHandler handles public proposals endpoints.
+// ProposalHandler handles public proposals endpoints by fetching from datos.gov.co.
 type ProposalHandler struct {
-	proposalService *service.ProposalService
+	datosGovService *service.DatosGovService
 }
 
-func NewProposalHandler(proposalService *service.ProposalService) *ProposalHandler {
-	return &ProposalHandler{proposalService: proposalService}
+func NewProposalHandler(datosGovService *service.DatosGovService) *ProposalHandler {
+	return &ProposalHandler{datosGovService: datosGovService}
 }
 
 func (h *ProposalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
@@ -41,17 +41,9 @@ func (h *ProposalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var proposals interface{}
-	var err error
-
-	if query != "" || fase != "" || entidad != "" {
-		proposals, err = h.proposalService.FilterProposals(r.Context(), query, fase, entidad, limit, offset)
-	} else {
-		proposals, err = h.proposalService.ListProposals(r.Context(), limit, offset)
-	}
-
+	proposals, err := h.datosGovService.FetchProposals(query, fase, entidad, limit, offset)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusInternalServerError, "failed to fetch proposals: "+err.Error())
 		return
 	}
 

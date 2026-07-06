@@ -10,7 +10,7 @@ import (
 // NewRouter creates and returns a configured http.ServeMux.
 func NewRouter(
 	authService *service.AuthService,
-	proposalService *service.ProposalService,
+	datosGovService *service.DatosGovService,
 	savedProposalService *service.SavedProposalService,
 ) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -27,8 +27,8 @@ func NewRouter(
 	mux.Handle("/user-info", handler.AuthMiddleware(authService, userHandler))
 	mux.Handle("/user-modify", handler.AuthMiddleware(authService, userHandler))
 
-	// Proposals - auth required
-	proposalHandler := handler.NewProposalHandler(proposalService)
+	// Proposals - auth required, fetches from datos.gov.co
+	proposalHandler := handler.NewProposalHandler(datosGovService)
 	mux.Handle("/public-proposals", handler.AuthMiddleware(authService, proposalHandler))
 
 	// Saved proposals - auth required

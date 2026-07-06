@@ -21,10 +21,12 @@ func main() {
 	sessionRepo := repository.NewMockSessionRepository()
 
 	authService := service.NewAuthService(userRepo, sessionRepo, cfg.SecretKey)
-	proposalService := service.NewProposalService(proposalRepo)
+	datosGovService := service.NewDatosGovService(cfg.IntegrationURL)
+	// Keep ProposalService for potential future DB-backed queries
+	_ = service.NewProposalService(proposalRepo)
 	savedProposalService := service.NewSavedProposalService(savedProposalRepo)
 
-	mux := router.NewRouter(authService, proposalService, savedProposalService)
+	mux := router.NewRouter(authService, datosGovService, savedProposalService)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Starting server on %s", addr)

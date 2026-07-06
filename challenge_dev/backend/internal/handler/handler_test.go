@@ -13,12 +13,11 @@ import (
 
 func setupTestServer() *httptest.Server {
 	userRepo := repository.NewMockUserRepository()
-	proposalRepo := repository.NewMockProposalRepository()
 	savedRepo := repository.NewMockSavedProposalRepository()
 
 	sessionRepo := repository.NewMockSessionRepository()
 	authService := service.NewAuthService(userRepo, sessionRepo, "test-secret")
-	proposalService := service.NewProposalService(proposalRepo)
+	datosGovService := service.NewDatosGovService("https://datos.gov.co/resource/p6dx-8zbt.json")
 	savedProposalService := service.NewSavedProposalService(savedRepo)
 
 	mux := http.NewServeMux()
@@ -30,7 +29,7 @@ func setupTestServer() *httptest.Server {
 	mux.Handle("/user-info", AuthMiddleware(authService, userHandler))
 	mux.Handle("/user-modify", AuthMiddleware(authService, userHandler))
 
-	mux.Handle("/public-proposals", AuthMiddleware(authService, NewProposalHandler(proposalService)))
+	mux.Handle("/public-proposals", AuthMiddleware(authService, NewProposalHandler(datosGovService)))
 
 	savedHandler := NewSavedProposalHandler(savedProposalService)
 	mux.Handle("/saved_proposals", AuthMiddleware(authService, savedHandler))
