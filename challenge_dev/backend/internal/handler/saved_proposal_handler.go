@@ -3,29 +3,27 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/service"
 )
 
 type saveProposalRequest struct {
-	PublicCallID int `json:"public_call_id"`
+	PublicCallID string `json:"public_call_id"`
 }
 
 // SavedProposalHandler handles saved proposals endpoints.
 type SavedProposalHandler struct {
 	savedProposalService *service.SavedProposalService
-	authService          *service.AuthService
 }
 
-func NewSavedProposalHandler(savedProposalService *service.SavedProposalService, authService *service.AuthService) *SavedProposalHandler {
-	return &SavedProposalHandler{savedProposalService: savedProposalService, authService: authService}
+func NewSavedProposalHandler(savedProposalService *service.SavedProposalService) *SavedProposalHandler {
+	return &SavedProposalHandler{savedProposalService: savedProposalService}
 }
 
 func (h *SavedProposalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	userID, err := h.authenticate(r)
-	if err != nil {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	userID, ok := r.Context().Value(userIDKey).(string)
+	if !ok || userID == "" {
+		writeError(w, http.StatusUnauthorized, "Credentials invalid")
 		return
 	}
 
@@ -39,49 +37,33 @@ func (h *SavedProposalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (h *SavedProposalHandler) authenticate(r *http.Request) (int, error) {
-	token := r.Header.Get("Authorization")
-	if token == "" {
-		return 0, service.ErrUnauthorized
-	}
-	// Strip "Bearer " prefix if present
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
-	}
-	return h.authService.ValidateToken(token)
-}
-
-func (h *SavedProposalHandler) save(w http.ResponseWriter, r *http.Request, userID int) {
+func (h *SavedProposalHandler) save(w http.ResponseWriter, r *http.Request, userID string) {
 	var req saveProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.PublicCallID == "" {
+		writeError(w, http.StatusBadRequest, "public_call_id is required")
 		return
 	}
 
 	saved, err := h.savedProposalService.SaveProposal(r.Context(), userID, req.PublicCallID)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(saved)
+	writeJSON(w, http.StatusCreated, saved)
 }
 
-func (h *SavedProposalHandler) list(w http.ResponseWriter, r *http.Request, userID int) {
+func (h *SavedProposalHandler) list(w http.ResponseWriter, r *http.Request, userID string) {
 	saved, err := h.savedProposalService.GetSavedProposals(r.Context(), userID)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(saved)
-}
-
-func parseInt(s string) int {
-	i, _ := strconv.Atoi(s)
-	return i
+	writeJSON(w, http.StatusOK, saved)
 }

@@ -8,7 +8,7 @@ import (
 
 // ProposalRepository defines the interface for proposal data access.
 type ProposalRepository interface {
-	List(ctx context.Context) ([]domain.PublicCallProposal, error)
-	Filter(ctx context.Context, query, category, fase string) ([]domain.PublicCallProposal, error)
-	FindByID(ctx context.Context, id int) (*domain.PublicCallProposal, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.PublicCallProposal, error)
+	ListWithFilters(ctx context.Context, query, fase, entidad string, limit, offset int) ([]*domain.PublicCallProposal, error)
+	FindByID(ctx context.Context, id string) (*domain.PublicCallProposal, error)
 }

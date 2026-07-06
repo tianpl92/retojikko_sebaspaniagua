@@ -15,21 +15,26 @@ func NewRouter(
 ) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Health
-	healthHandler := handler.NewHealthHandler()
-	mux.Handle("/health", healthHandler)
+	// Health - no auth required
+	mux.Handle("/health", handler.NewHealthHandler())
 
-	// Auth
-	authHandler := handler.NewAuthHandler(authService)
-	mux.Handle("/login", authHandler)
+	// Auth - no auth required
+	mux.Handle("/login", handler.NewAuthHandler(authService))
+	mux.Handle("/user-create", handler.NewCreateUserHandler(authService))
 
-	// Proposals
+	// User info/modify - auth required
+	userHandler := handler.NewUserHandler(authService)
+	mux.Handle("/user-info", handler.AuthMiddleware(authService, userHandler))
+	mux.Handle("/user-modify", handler.AuthMiddleware(authService, userHandler))
+
+	// Proposals - auth required
 	proposalHandler := handler.NewProposalHandler(proposalService)
-	mux.Handle("/public-proposals", proposalHandler)
+	mux.Handle("/public-proposals", handler.AuthMiddleware(authService, proposalHandler))
 
-	// Saved proposals
-	savedProposalHandler := handler.NewSavedProposalHandler(savedProposalService, authService)
-	mux.Handle("/saved-proposals", savedProposalHandler)
+	// Saved proposals - auth required
+	savedProposalHandler := handler.NewSavedProposalHandler(savedProposalService)
+	mux.Handle("/saved_proposals", handler.AuthMiddleware(authService, savedProposalHandler))
+	mux.Handle("/saved-proposals", handler.AuthMiddleware(authService, savedProposalHandler))
 
 	return mux
 }

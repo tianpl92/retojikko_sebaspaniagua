@@ -4,12 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/domain"
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/repository"
 )
 
 func TestAuthService_Login_Success(t *testing.T) {
 	userRepo := repository.NewMockUserRepository()
-	authService := NewAuthService(userRepo, "test-secret")
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
 
 	token, user, err := authService.Login(context.Background(), "test@example.com", "password123")
 	if err != nil {
@@ -28,7 +30,8 @@ func TestAuthService_Login_Success(t *testing.T) {
 
 func TestAuthService_Login_InvalidPassword(t *testing.T) {
 	userRepo := repository.NewMockUserRepository()
-	authService := NewAuthService(userRepo, "test-secret")
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
 
 	_, _, err := authService.Login(context.Background(), "test@example.com", "wrongpassword")
 	if err != ErrInvalidCredentials {
@@ -38,7 +41,8 @@ func TestAuthService_Login_InvalidPassword(t *testing.T) {
 
 func TestAuthService_Login_UserNotFound(t *testing.T) {
 	userRepo := repository.NewMockUserRepository()
-	authService := NewAuthService(userRepo, "test-secret")
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
 
 	_, _, err := authService.Login(context.Background(), "nobody@example.com", "password123")
 	if err != ErrInvalidCredentials {
@@ -48,7 +52,8 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 
 func TestAuthService_ValidateToken_Valid(t *testing.T) {
 	userRepo := repository.NewMockUserRepository()
-	authService := NewAuthService(userRepo, "test-secret")
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
 
 	token, _, err := authService.Login(context.Background(), "test@example.com", "password123")
 	if err != nil {
@@ -59,14 +64,15 @@ func TestAuthService_ValidateToken_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if userID != 1 {
-		t.Errorf("expected userID 1, got %d", userID)
+	if userID != "1" {
+		t.Errorf("expected userID '1', got %q", userID)
 	}
 }
 
 func TestAuthService_ValidateToken_Invalid(t *testing.T) {
 	userRepo := repository.NewMockUserRepository()
-	authService := NewAuthService(userRepo, "test-secret")
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
 
 	_, err := authService.ValidateToken("invalid-token")
 	if err != ErrUnauthorized {
@@ -74,11 +80,54 @@ func TestAuthService_ValidateToken_Invalid(t *testing.T) {
 	}
 }
 
+func TestAuthService_CreateUser(t *testing.T) {
+	userRepo := repository.NewMockUserRepository()
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
+
+	user := &domain.User{
+		ID:        "new-doc-123",
+		FirstName: "New",
+		LastName:  "User",
+		Email:     "newuser@example.com",
+		Password:  "secret",
+		Status:    "active",
+	}
+
+	created, err := authService.CreateUser(context.Background(), user)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if created == nil {
+		t.Fatal("expected created user, got nil")
+	}
+	if created.Email != "newuser@example.com" {
+		t.Errorf("expected email 'newuser@example.com', got %q", created.Email)
+	}
+}
+
+func TestAuthService_GetUserByID(t *testing.T) {
+	userRepo := repository.NewMockUserRepository()
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
+
+	user, err := authService.GetUserByID(context.Background(), "1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user == nil {
+		t.Fatal("expected user, got nil")
+	}
+	if user.Email != "test@example.com" {
+		t.Errorf("expected email 'test@example.com', got %q", user.Email)
+	}
+}
+
 func TestProposalService_ListProposals(t *testing.T) {
 	proposalRepo := repository.NewMockProposalRepository()
 	proposalService := NewProposalService(proposalRepo)
 
-	proposals, err := proposalService.ListProposals(context.Background())
+	proposals, err := proposalService.ListProposals(context.Background(), 10, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -87,11 +136,11 @@ func TestProposalService_ListProposals(t *testing.T) {
 	}
 }
 
-func TestProposalService_FilterProposals(t *testing.T) {
+func TestProposalService_ListWithFilters(t *testing.T) {
 	proposalRepo := repository.NewMockProposalRepository()
 	proposalService := NewProposalService(proposalRepo)
 
-	proposals, err := proposalService.FilterProposals(context.Background(), "test", "category1", "fase1")
+	proposals, err := proposalService.ListWithFilters(context.Background(), "test", "fase1", "entidad1", 10, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,7 +153,7 @@ func TestSavedProposalService_SaveProposal(t *testing.T) {
 	savedRepo := repository.NewMockSavedProposalRepository()
 	savedService := NewSavedProposalService(savedRepo)
 
-	saved, err := savedService.SaveProposal(context.Background(), 1, 42)
+	saved, err := savedService.SaveProposal(context.Background(), "1", "42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -114,8 +163,8 @@ func TestSavedProposalService_SaveProposal(t *testing.T) {
 	if saved.PublicCallID != 42 {
 		t.Errorf("expected PublicCallID 42, got %d", saved.PublicCallID)
 	}
-	if saved.UserID != 1 {
-		t.Errorf("expected UserID 1, got %d", saved.UserID)
+	if saved.UserID != "1" {
+		t.Errorf("expected UserID '1', got %q", saved.UserID)
 	}
 }
 
@@ -124,7 +173,7 @@ func TestSavedProposalService_GetSavedProposals(t *testing.T) {
 	savedService := NewSavedProposalService(savedRepo)
 
 	// No saved proposals initially
-	saved, err := savedService.GetSavedProposals(context.Background(), 1)
+	saved, err := savedService.GetSavedProposals(context.Background(), "1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -136,8 +185,8 @@ func TestSavedProposalService_GetSavedProposals(t *testing.T) {
 	}
 
 	// Save one and check
-	savedService.SaveProposal(context.Background(), 1, 42)
-	saved, err = savedService.GetSavedProposals(context.Background(), 1)
+	savedService.SaveProposal(context.Background(), "1", "42")
+	saved, err = savedService.GetSavedProposals(context.Background(), "1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -150,14 +199,14 @@ func TestSavedProposalService_RemoveSavedProposal(t *testing.T) {
 	savedRepo := repository.NewMockSavedProposalRepository()
 	savedService := NewSavedProposalService(savedRepo)
 
-	saved, _ := savedService.SaveProposal(context.Background(), 1, 42)
+	saved, _ := savedService.SaveProposal(context.Background(), "1", "42")
 
-	err := savedService.RemoveSavedProposal(context.Background(), saved.ID)
+	err := savedService.RemoveSavedProposal(context.Background(), saved.UserID, "42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	savedList, _ := savedService.GetSavedProposals(context.Background(), 1)
+	savedList, _ := savedService.GetSavedProposals(context.Background(), "1")
 	if len(savedList) != 0 {
 		t.Errorf("expected 0 after delete, got %d", len(savedList))
 	}

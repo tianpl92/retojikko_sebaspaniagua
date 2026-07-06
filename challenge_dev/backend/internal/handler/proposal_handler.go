@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/service"
 )
@@ -23,24 +23,37 @@ func (h *ProposalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("query")
-	category := r.URL.Query().Get("category")
 	fase := r.URL.Query().Get("fase")
+	entidad := r.URL.Query().Get("entidad")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 100
+	offset := 0
+	if limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+			limit = v
+		}
+	}
+	if offsetStr != "" {
+		if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
+			offset = v
+		}
+	}
 
 	var proposals interface{}
 	var err error
 
-	if query != "" || category != "" || fase != "" {
-		proposals, err = h.proposalService.FilterProposals(r.Context(), query, category, fase)
+	if query != "" || fase != "" || entidad != "" {
+		proposals, err = h.proposalService.FilterProposals(r.Context(), query, fase, entidad, limit, offset)
 	} else {
-		proposals, err = h.proposalService.ListProposals(r.Context())
+		proposals, err = h.proposalService.ListProposals(r.Context(), limit, offset)
 	}
 
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(proposals)
+	writeJSON(w, http.StatusOK, proposals)
 }

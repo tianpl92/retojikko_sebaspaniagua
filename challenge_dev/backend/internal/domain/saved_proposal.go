@@ -8,7 +8,7 @@ import (
 type SavedProposal struct {
 	ID              string     `json:"id"`
 	PublicCallID    int        `json:"public_call_id"`
-	UserID          int        `json:"user_id"`
+	UserID          string     `json:"user_id"`
 	AssociationDate time.Time  `json:"association_date"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`

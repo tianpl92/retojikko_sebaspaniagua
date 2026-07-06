@@ -16,12 +16,17 @@ func NewProposalService(proposalRepo repository.ProposalRepository) *ProposalSer
 	return &ProposalService{proposalRepo: proposalRepo}
 }
 
-// ListProposals returns all proposals.
-func (s *ProposalService) ListProposals(ctx context.Context) ([]domain.PublicCallProposal, error) {
-	return s.proposalRepo.List(ctx)
+// ListProposals returns all proposals with pagination.
+func (s *ProposalService) ListProposals(ctx context.Context, limit, offset int) ([]*domain.PublicCallProposal, error) {
+	return s.proposalRepo.List(ctx, limit, offset)
 }
 
-// FilterProposals filters proposals by query, category, and fase.
-func (s *ProposalService) FilterProposals(ctx context.Context, query, category, fase string) ([]domain.PublicCallProposal, error) {
-	return s.proposalRepo.Filter(ctx, query, category, fase)
+// ListWithFilters returns proposals matching filter criteria.
+func (s *ProposalService) ListWithFilters(ctx context.Context, query, fase, entidad string, limit, offset int) ([]*domain.PublicCallProposal, error) {
+	return s.proposalRepo.ListWithFilters(ctx, query, fase, entidad, limit, offset)
+}
+
+// FilterProposals is an alias for ListWithFilters.
+func (s *ProposalService) FilterProposals(ctx context.Context, query, fase, entidad string, limit, offset int) ([]*domain.PublicCallProposal, error) {
+	return s.ListWithFilters(ctx, query, fase, entidad, limit, offset)
 }

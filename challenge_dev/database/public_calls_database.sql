@@ -164,3 +164,26 @@ COMMENT ON COLUMN public.public_call_user_associations.association_date IS 'Time
 COMMENT ON COLUMN public.public_call_user_associations.created_at IS 'Timestamp when the association record was created.';
 COMMENT ON COLUMN public.public_call_user_associations.updated_at IS 'Timestamp when the association record was last updated.';
 COMMENT ON COLUMN public.public_call_user_associations.deleted_at IS 'Timestamp when the association record was soft deleted, when applicable.';
+CREATE TABLE public.user_sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id varchar(128) NOT NULL,
+    token text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_sessions_user
+        FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_sessions_token ON public.user_sessions (token);
+CREATE INDEX idx_user_sessions_user_id ON public.user_sessions (user_id);
+CREATE INDEX idx_user_sessions_expires_at ON public.user_sessions (expires_at);
+
+COMMENT ON TABLE public.user_sessions IS 'Stores JWT session tokens for authenticated users.';
+COMMENT ON COLUMN public.user_sessions.id IS 'Primary identifier for the session record.';
+COMMENT ON COLUMN public.user_sessions.user_id IS 'Foreign key referencing the authenticated user.';
+COMMENT ON COLUMN public.user_sessions.token IS 'JWT token string for session validation.';
+COMMENT ON COLUMN public.user_sessions.expires_at IS 'Timestamp when the session token expires.';
+COMMENT ON COLUMN public.user_sessions.created_at IS 'Timestamp when the session record was created.';

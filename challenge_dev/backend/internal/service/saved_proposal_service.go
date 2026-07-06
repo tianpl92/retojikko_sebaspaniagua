@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/domain"
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/repository"
@@ -18,26 +17,16 @@ func NewSavedProposalService(savedRepo repository.SavedProposalRepository) *Save
 }
 
 // SaveProposal saves a proposal for a user.
-func (s *SavedProposalService) SaveProposal(ctx context.Context, userID, publicCallID int) (*domain.SavedProposal, error) {
-	saved := &domain.SavedProposal{
-		PublicCallID:    publicCallID,
-		UserID:          userID,
-		AssociationDate: time.Now(),
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-	if err := s.savedRepo.Save(ctx, saved); err != nil {
-		return nil, err
-	}
-	return saved, nil
+func (s *SavedProposalService) SaveProposal(ctx context.Context, userID, publicCallID string) (*domain.SavedProposal, error) {
+	return s.savedRepo.Save(ctx, userID, publicCallID)
 }
 
 // GetSavedProposals returns all saved proposals for a user.
-func (s *SavedProposalService) GetSavedProposals(ctx context.Context, userID int) ([]domain.SavedProposal, error) {
+func (s *SavedProposalService) GetSavedProposals(ctx context.Context, userID string) ([]*domain.SavedProposal, error) {
 	return s.savedRepo.FindByUserID(ctx, userID)
 }
 
-// RemoveSavedProposal removes a saved proposal.
-func (s *SavedProposalService) RemoveSavedProposal(ctx context.Context, id string) error {
-	return s.savedRepo.Delete(ctx, id)
+// RemoveSavedProposal removes a saved proposal for a user.
+func (s *SavedProposalService) RemoveSavedProposal(ctx context.Context, userID, publicCallID string) error {
+	return s.savedRepo.Delete(ctx, userID, publicCallID)
 }

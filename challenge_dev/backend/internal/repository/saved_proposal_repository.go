@@ -8,7 +8,7 @@ import (
 
 // SavedProposalRepository defines the interface for saved proposals data access.
 type SavedProposalRepository interface {
-	Save(ctx context.Context, saved *domain.SavedProposal) error
-	FindByUserID(ctx context.Context, userID int) ([]domain.SavedProposal, error)
-	Delete(ctx context.Context, id string) error
+	Save(ctx context.Context, userID, publicCallID string) (*domain.SavedProposal, error)
+	FindByUserID(ctx context.Context, userID string) ([]*domain.SavedProposal, error)
+	Delete(ctx context.Context, userID, publicCallID string) error
 }

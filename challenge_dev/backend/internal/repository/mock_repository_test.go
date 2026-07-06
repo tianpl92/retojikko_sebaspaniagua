@@ -19,8 +19,8 @@ func TestMockUserRepository_FindByEmail_Found(t *testing.T) {
 	if user.Email != "test@example.com" {
 		t.Errorf("expected email 'test@example.com', got %q", user.Email)
 	}
-	if user.ID != 1 {
-		t.Errorf("expected ID 1, got %d", user.ID)
+	if user.ID != "1" {
+		t.Errorf("expected ID \"1\", got %q", user.ID)
 	}
 }
 
@@ -35,6 +35,7 @@ func TestMockUserRepository_FindByEmail_NotFound(t *testing.T) {
 func TestMockUserRepository_Create(t *testing.T) {
 	repo := NewMockUserRepository()
 	user := &domain.User{
+		ID:       "2",
 		Email:    "newuser@example.com",
 		Password: "secret",
 	}
@@ -67,7 +68,7 @@ func TestMockUserRepository_Create_Duplicate(t *testing.T) {
 
 func TestMockProposalRepository_List(t *testing.T) {
 	repo := NewMockProposalRepository()
-	proposals, err := repo.List(context.Background())
+	proposals, err := repo.List(context.Background(), 100, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,11 +79,7 @@ func TestMockProposalRepository_List(t *testing.T) {
 
 func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
 	repo := NewMockSavedProposalRepository()
-	saved := &domain.SavedProposal{
-		PublicCallID: 42,
-		UserID:       1,
-	}
-	err := repo.Save(context.Background(), saved)
+	saved, err := repo.Save(context.Background(), "1", "42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -90,9 +87,15 @@ func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
 	if saved.ID == "" {
 		t.Error("expected ID to be set after Save")
 	}
+	if saved.PublicCallID != 42 {
+		t.Errorf("expected PublicCallID 42, got %d", saved.PublicCallID)
+	}
+	if saved.UserID != "1" {
+		t.Errorf("expected UserID \"1\", got %q", saved.UserID)
+	}
 
 	// Find by user
-	results, err := repo.FindByUserID(context.Background(), 1)
+	results, err := repo.FindByUserID(context.Background(), "1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -106,31 +109,64 @@ func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
 
 func TestMockSavedProposalRepository_Delete(t *testing.T) {
 	repo := NewMockSavedProposalRepository()
-	saved := &domain.SavedProposal{
-		PublicCallID: 99,
-		UserID:       2,
-	}
-	repo.Save(context.Background(), saved)
-
-	// Delete
-	err := repo.Delete(context.Background(), saved.ID)
+	saved, err := repo.Save(context.Background(), "2", "99")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	results, err := repo.FindByUserID(context.Background(), 2)
+	// Delete
+	err = repo.Delete(context.Background(), "2", "99")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	results, err := repo.FindByUserID(context.Background(), "2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(results) != 0 {
 		t.Errorf("expected 0 saved proposals after delete, got %d", len(results))
 	}
+	_ = saved // used to avoid unused variable complaint
 }
 
 func TestMockSavedProposalRepository_Delete_NotFound(t *testing.T) {
 	repo := NewMockSavedProposalRepository()
-	err := repo.Delete(context.Background(), "nonexistent-id")
+	err := repo.Delete(context.Background(), "nonexistent", "999")
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestMockUserRepository_FindByID(t *testing.T) {
+	repo := NewMockUserRepository()
+	user, err := repo.FindByID(context.Background(), "1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user == nil {
+		t.Fatal("expected user, got nil")
+	}
+	if user.ID != "1" {
+		t.Errorf("expected ID \"1\", got %q", user.ID)
+	}
+}
+
+func TestMockUserRepository_ExistsByEmail(t *testing.T) {
+	repo := NewMockUserRepository()
+	exists, err := repo.ExistsByEmail(context.Background(), "test@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !exists {
+		t.Error("expected user to exist")
+	}
+
+	exists, err = repo.ExistsByEmail(context.Background(), "nobody@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exists {
+		t.Error("expected user not to exist")
 	}
 }

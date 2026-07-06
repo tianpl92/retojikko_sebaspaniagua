@@ -15,13 +15,12 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// In-memory mock repositories — swap with real DB-backed repos when DB is ready.
-	// TODO: Replace with actual PostgreSQL repository implementations using pgx.
 	userRepo := repository.NewMockUserRepository()
 	proposalRepo := repository.NewMockProposalRepository()
 	savedProposalRepo := repository.NewMockSavedProposalRepository()
+	sessionRepo := repository.NewMockSessionRepository()
 
-	authService := service.NewAuthService(userRepo, cfg.SecretKey)
+	authService := service.NewAuthService(userRepo, sessionRepo, cfg.SecretKey)
 	proposalService := service.NewProposalService(proposalRepo)
 	savedProposalService := service.NewSavedProposalService(savedProposalRepo)
 
@@ -30,7 +29,6 @@ func main() {
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Starting server on %s", addr)
 
-	// Attempt to load .env if present (best-effort)
 	if _, err := os.Stat(".env"); err == nil {
 		log.Println("Found .env file — ensure environment variables are set")
 	}
