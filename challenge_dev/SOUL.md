@@ -5,7 +5,8 @@
 > **Branch:** `feature/challenge_dev_public_proposals`
 > **Tech Stack:** Go 1.26.4 · PostgreSQL 16 · HTML5/CSS/JS · REST/JSON
 > **External API:** datos.gov.co — SECOP II Socrata Open Data API (SODA v2.1)
-> **Last Updated:** 2026-07-03
+> **Auth:** JWT (HMAC HS256, 1h expiry) · bcrypt password hashing
+> **Last Updated:** 2026-07-06
 
 ---
 
@@ -13,11 +14,15 @@
 
 The **Public Calls Portal** is a web application that connects to Colombia's SECOP II public procurement platform via `datos.gov.co` to allow users to **browse, filter, and save public calls for proposals** (convocatorias públicas).
 
-The project follows a **backend-first, two-phase approach**:
-1. **Phase 1 (Complete):** PostgreSQL database schema + Go backend API skeleton
-2. **Phase 2 (Pending):** HTML5/CSS/JS frontend
+**Phase 1 (Backend) is complete** with:
+- **JWT authentication** replacing legacy HMAC tokens
+- **Live integration** with datos.gov.co SECOP II SODA API
+- **8 REST endpoints** fully implemented with input validation
+- **46/46 tests passing**
+- **API contract** documented at `apicontract.md`
+- **PostgreSQL 16** with 4 tables (`users`, `public_calls_proposals`, `public_call_user_associations`, `user_sessions`)
 
-The backend is fully implemented with a **layered architecture** (domain → repository → service → handler → router), **22 Go source files**, **29 passing tests**, and a fully deployed PostgreSQL database (`portal_plan_public_app`).
+**Phase 2 (Frontend) is pending** — HTML5/CSS/JS frontend pages, end-to-end wiring.
 
 ---
 
@@ -32,21 +37,24 @@ The backend is fully implemented with a **layered architecture** (domain → rep
 ├─────────────────────────────────────────────────────────────┤
 │                        Router                                │
 │               http.ServeMux (net/http)                       │
-├───────────┬──────────┬──────────────────────────────────────┤
-│  Handler  │  Handler  │            Handler                   │
-│   Auth    │ Proposals│         Saved Proposals               │
-├───────────┴──────────┴──────────────────────────────────────┤
+├─────────────────────────────────────────────────────────────┤
+│        AuthMiddleware (JWT Bearer Token validation)          │
+├───────────┬──────────┬──────────┬───────────────────────────┤
+│  Handler  │  Handler  │  Handler │     Handler              │
+│   Auth    │  Users   │ Proposals│  Saved Proposals          │
+├───────────┴──────────┴──────────┴───────────────────────────┤
 │                        Service                               │
-│    Auth · Proposal Listing/Filter · Saved Proposal CRUD      │
+│  Auth(JWT) · User CRUD · DatosGov(ext API) · Saved Proposal │
 ├─────────────────────────────────────────────────────────────┤
 │                       Repository                             │
-│       User · PublicCallProposal · SavedProposal              │
+│       User · Proposal · SavedProposal · Session (mock)       │
 ├─────────────────────────────────────────────────────────────┤
 │                        Domain                                │
-│        Structs: User · PublicCallProposal · SavedProposal    │
+│     Structs: User · PublicCallProposal · SavedProposal ·     │
+│               UserSession                                    │
 ├─────────────────────────────────────────────────────────────┤
-│                      Database (pgx)                          │
-│         portal_plan_public_app (PostgreSQL 16)               │
+│                   PostgreSQL 16                              │
+│         portal_plan_public_app (4 tables)                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -54,109 +62,129 @@ The backend is fully implemented with a **layered architecture** (domain → rep
 
 ## Completed Tasks
 
-### ✅ Task 0: Discover datos.gov.co API
+### ✅ Spec 8: JWT Authentication & User Endpoints
+
+| Component | Detail |
+|-----------|--------|
+| **JWT Library** | `golang-jwt/jwt/v5` with HS256 signing |
+| **Password hashing** | `bcrypt` via `golang.org/x/crypto` |
+| **Token expiry** | 1 hour, stored in `user_sessions` table |
+| **POST /login** | Validates email + bcrypt password → returns JWT |
+| **POST /user-create** | Validates duplicate document + email, bcrypt-hashes password |
+| **POST /user-info** | Returns authenticated user profile (no password in response) |
+| **POST /user-modify** | Updates profile: only `first_name`, `last_name`, `gender`, `phone_number`, `status` |
+
+### ✅ Spec 9: datos.gov.co Integration
 
 | Item | Detail |
 |------|--------|
+| **Service** | `service/datosgov_service.go` — HTTP client for SECOP II SODA API |
 | **Endpoint** | `GET https://datos.gov.co/resource/p6dx-8zbt.json` |
-| **Dataset** | SECOP II — Procesos de Contratación (Dataset ID: `p6dx-8zbt`) |
-| **Protocol** | Socrata Open Data API (SODA) v2.1 |
-| **Auth** | None required (public data) |
-| **Documentation** | `integration_doc/datosgovco/documentation.md` |
-| **Test PoC** | `integration_doc/datosgovco/test.go` |
+| **Protocol** | SoQL query language via URL params |
+| **Filters** | `query` (full-text), `fase` (exact), `entidad` (partial), `limit`, `offset` |
+| **Auth** | Public API (no key required), endpoint requires JWT |
+| **Response** | Passthrough — returns raw JSON from datos.gov.co with original column names |
+| **Env var** | `INTEGRATION_URL` in `backend/.env` |
 
-Supports full-text search (`$q`), column filtering (`$where`), pagination (`$limit`, `$offset`), and sorting (`$order`).
+### ✅ Spec 10: Endpoint Logic Refinements
 
-### ✅ Task 1: Database Schema & PostgreSQL Setup
+| Endpoint | Before | After |
+|----------|--------|-------|
+| **POST /saved-proposals** | Returned saved object | Returns `{"message":"Guardado satisfactoriamente"}` (idempotent) |
+| **GET /saved_proposals** | Returned raw records | Returns array (empty `[]` if none) |
+| **POST /user-modify** | Accepted all fields | Only `first_name`, `last_name`, `gender`, `phone_number`, `status`. Rejects `email`, `password`, `id`. Requires at least one field |
+| **POST /user-info** | Was `GET /user-info` | Changed to POST, no password in response, `"Usuario no registrado"` on not found |
 
-- **PostgreSQL 16** installed on local machine (port 5432)
-- Database `portal_plan_public_app` created
-- User `sebasdb` created with `CREATEDB` + full CRUD on all schema objects
-- **166-line SQL schema** at `database/public_calls_database.sql`
-- Schema includes: `pgcrypto` extension, `set_updated_at()` auto-trigger function, 3 tables, indexes, foreign keys, comments
+### ✅ API Contract
 
-**Tables:**
+- **Created** `apicontract.md` — 486 lines, 8 endpoints documented
+- Each endpoint includes: protocol, input params (with examples), response format, error codes
 
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `users` | Portal user accounts | id, email, password, status, timestamps |
-| `public_calls_proposals` | Cached SECOP II calls (50+ fields) | id, nombre, entidad, fase, modalidad, precio, fechas, estado, proveedores |
-| `public_call_user_associations` | User ↔ Saved call links | id (uuid), public_call_id, user_id, association_date |
+### ✅ Database Schema
 
-### ✅ Task 2: Go Backend Skeleton
+- **4 tables** in `portal_plan_public_app`:
+  - `users` — Portal user accounts (id=varchar(128) as document number)
+  - `public_calls_proposals` — SECOP II proposal data (50+ columns)
+  - `public_call_user_associations` — User ↔ saved proposal links
+  - `user_sessions` — JWT session tokens (user_id FK, token, expires_at)
+- Updated `database/public_calls_database.sql` with `user_sessions` table
 
-**22 Go source files** across 7 packages:
+---
 
-```
-challenge_dev/backend/
-├── cmd/api/main.go                        # Entrypoint, DI wiring, server startup
-├── go.mod / go.sum                        # Module: github.com/tianpl92/.../backend (go 1.26.4)
-├── internal/
-│   ├── config/
-│   │   ├── config.go                      # Loads PORT, DB_USER, DB_PASSWORD, SECRET_KEY from env
-│   │   └── config_test.go                 # 2 tests (defaults + env override)
-│   ├── database/
-│   │   └── postgres.go                    # pgx v5 connection pool (ready for prod swap)
-│   ├── domain/
-│   │   ├── user.go                        # User struct with JSON tags
-│   │   ├── public_proposal.go             # PublicCallProposal struct (50+ fields mapped)
-│   │   └── saved_proposal.go              # SavedProposal struct
-│   ├── repository/
-│   │   ├── user_repository.go             # Interface + mock: FindByEmail, Create
-│   │   ├── proposal_repository.go         # Interface + mock: List, Filter, FindByID
-│   │   ├── saved_proposal_repository.go   # Interface + mock: Save, FindByUserID, Delete
-│   │   ├── mock_repository.go             # In-memory mock implementations
-│   │   └── mock_repository_test.go        # 8 tests (CRUD edge cases)
-│   ├── service/
-│   │   ├── auth_service.go                # Login with HMAC token, ValidateToken
-│   │   ├── proposal_service.go            # ListProposals, FilterProposals
-│   │   ├── saved_proposal_service.go      # SaveProposal, GetSaved, RemoveSaved
-│   │   └── service_test.go                # 10 tests (auth, proposals, saved)
-│   ├── handler/
-│   │   ├── health_handler.go              # GET /health → {"status":"ok"}
-│   │   ├── auth_handler.go                # POST /login → {token, user}
-│   │   ├── proposal_handler.go            # GET /public-proposals?query=&fase=&entidad=
-│   │   ├── saved_proposal_handler.go      # POST + GET /saved-proposals (auth required)
-│   │   └── handler_test.go                # 9 tests (httptest.Server)
-│   └── router/
-│       └── router.go                      # http.ServeMux wiring for all 5 routes
-└── README.md                              # Env vars documentation
-```
+## API Endpoints
 
-### ✅ API Endpoints
+| # | Method | Path | Auth | Description |
+|---|--------|------|:----:|-------------|
+| 1 | `GET` | `/health` | ❌ | Health check |
+| 2 | `POST` | `/user-create` | ❌ | Register new user |
+| 3 | `POST` | `/login` | ❌ | Authenticate → JWT (1h) |
+| 4 | `POST` | `/user-info` | ✅ | Get user profile (no password) |
+| 5 | `POST` | `/user-modify` | ✅ | Update allowed profile fields |
+| 6 | `GET` | `/public-proposals` | ✅ | Live data from datos.gov.co |
+| 7 | `GET` | `/saved_proposals` | ✅ | List user's saved proposals |
+| 8 | `POST` | `/saved-proposals` | ✅ | Save proposal (idempotent) |
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/health` | No | Health check |
-| `POST` | `/login` | No | Authenticate with email + password → returns HMAC token |
-| `GET` | `/public-proposals` | No | List proposals. Filters: `?query=&fase=&entidad=` |
-| `POST` | `/saved-proposals` | Yes | Save a proposal (`Authorization: Bearer <token>`) |
-| `GET` | `/saved-proposals` | Yes | List user's saved proposals |
+---
 
-### ✅ Tests & Quality Gates
+## Tests & Quality Gates
 
-**29/29 tests passing** across 4 packages:
+**46/46 tests passing** across 4 packages:
 
 | Package | Tests | Coverage |
 |---------|-------|----------|
 | `internal/config` | 2 | Defaults + env override |
-| `internal/handler` | 9 | Health, login (success/fail/bad-req), proposals (list/filter), saved (auth/create/list/invalid-token) |
-| `internal/repository` | 8 | Mock CRUD for users, proposals, saved proposals (create, duplicate, delete, not-found) |
-| `internal/service` | 10 | Auth (login, validate, invalid pw, not-found), proposals (list, filter), saved (save, get, remove) |
+| `internal/handler` | 22 | Health, login, user-create, user-info, user-modify, public-proposals, saved-proposals (auth, CRUD, edge cases) |
+| `internal/repository` | 10 | Mock CRUD for users, proposals, saved proposals, sessions |
+| `internal/service` | 12 | JWT auth (login, validate, create user), proposals, saved proposals |
 
 **Toolchain checks:**
 - `gofmt` — 0 files need formatting ✅
 - `go vet` — zero warnings ✅
 - `go build ./...` — compiles cleanly ✅
 
-### ✅ Environment & Config
+---
 
-| File | Purpose |
-|------|---------|
-| `backend/.env` (gitignored) | `DB_USER=sebasdb`, `DB_PASSWORD=***` |
-| `.gitignore` | Excludes `backend/.env`, `.hermes/` |
-| `backend/README.md` | Documents required env vars |
-| `SOUL.md` | This report (replaces previous notes) |
+## Source Files
+
+**27 Go files** across the backend:
+
+```
+backend/
+├── cmd/api/main.go                        # Entrypoint, DI wiring
+├── go.mod / go.sum                        # Go 1.26.4, deps: jwt/v5, pgx/v5, bcrypt
+├── internal/
+│   ├── config/config.go                   # Env vars: DB, INTEGRATION_URL, SECRET_KEY
+│   ├── database/postgres.go               # pgx pool factory
+│   ├── domain/
+│   │   ├── user.go                        # User struct (ID=string, password hidden)
+│   │   ├── public_proposal.go             # 50+ field proposal struct
+│   │   ├── saved_proposal.go             # Saved proposal assoc struct
+│   │   └── user_session.go               # JWT session struct
+│   ├── repository/
+│   │   ├── user_repository.go             # Interface: FindByEmail, Create, Update...
+│   │   ├── proposal_repository.go         # Interface: List, Filter, FindByID
+│   │   ├── saved_proposal_repository.go   # Interface: Save, FindByUserID, Delete
+│   │   ├── session_repository.go          # Interface: Create, FindByToken, DeleteExpired
+│   │   ├── mock_repository.go             # In-memory mock implementations
+│   │   ├── postgres_user_repository.go    # Real pgx implementation
+│   │   ├── postgres_proposal_repository.go
+│   │   ├── postgres_saved_proposal_repository.go
+│   │   └── postgres_session_repository.go
+│   ├── service/
+│   │   ├── auth_service.go                # JWT + bcrypt auth logic
+│   │   ├── datosgov_service.go            # datos.gov.co HTTP client
+│   │   ├── proposal_service.go            # Proposal business logic
+│   │   └── saved_proposal_service.go      # Saved proposal logic
+│   ├── handler/
+│   │   ├── health_handler.go              # GET /health
+│   │   ├── auth_handler.go                # POST /login, POST /user-create
+│   │   ├── user_handler.go                # POST /user-info, POST /user-modify
+│   │   ├── proposal_handler.go            # GET /public-proposals
+│   │   ├── saved_proposal_handler.go      # POST + GET saved-proposals
+│   │   └── context.go                     # AuthMiddleware + context helpers
+│   └── router/router.go                   # All route wiring
+└── README.md
+```
 
 ---
 
@@ -166,24 +194,25 @@ challenge_dev/backend/
 |---|-----------|--------|
 | 0 | Scan datos.gov.co API | ✅ Done |
 | 1 | Backend project skeleton + database schema | ✅ Done |
-| 2 | Core backend endpoints + business logic | ✅ Done |
-| 3 | Backend unit tests (TDD) | ✅ Done |
-| 4 | Frontend pages | ⏳ Pending |
-| 5 | Frontend ↔ Backend wiring | ⏳ Pending |
-| 6 | End-to-end validation | ⏳ Pending |
+| 2 | JWT auth + user endpoints | ✅ Done |
+| 3 | datos.gov.co live integration | ✅ Done |
+| 4 | Endpoint logic refinements | ✅ Done |
+| 5 | Frontend pages (login + dashboard) | ⏳ Pending |
+| 6 | Frontend ↔ Backend wiring | ⏳ Pending |
+| 7 | End-to-end validation | ⏳ Pending |
 
 ---
 
-## Git History
+## Git History (Today — 2026-07-06)
 
 ```
-d68b6b1 feat: add backend skeleton with layered architecture
-95256fb Refactor sql schema
-18d3ba1 feat (reto jikko) database schema v2 - secop ii columns comparison
-4c84bee add git ignore files
-a6035d9 feat (reto jikko) challenge dev - database schema creation
-cb9c4ee Creacion de specs, resultados y analysis.md usando hermes
-a318cb9 Initial commit
+215fb84 Building logic to endpoints for saved proposals, get user info, modify user and obtains user proposals saved
+8e5468b  Build integration with api external and creates first version api contract
+4e689f7  feat: add specs 1-9, integration docs, JWT backend
+5aa5167  feat: add JWT auth, user endpoints, and real PostgreSQL repos
+e1bed16  docs: add executive and technical report to SOUL.md
+d68b6b1  feat: add backend skeleton with layered architecture
+95256fb  Refactor sql schema
 ```
 
 ---
@@ -195,7 +224,8 @@ challenge_dev/
 ├── .gitignore
 ├── hermes.md                          # Product guidance
 ├── SOUL.md                            # This report
-├── backend/                           # Go backend (Phase 1)
+├── apicontract.md                     # API contract (8 endpoints)
+├── backend/                           # Go backend (Phase 1 complete)
 │   ├── cmd/api/main.go
 │   ├── go.mod / go.sum
 │   ├── internal/
@@ -208,11 +238,11 @@ challenge_dev/
 │   │   └── router/
 │   └── README.md
 ├── database/
-│   ├── public_calls_database.sql      # Production schema
+│   ├── public_calls_database.sql      # Production schema (+user_sessions)
 │   └── compare_rubric/                # Schema comparison artifacts
 ├── integration_doc/
 │   └── datosgovco/                    # SECOP II API docs + test
-├── specs_project/                     # Task specs (1–7)
+├── specs_project/                     # Task specs 1–10
 └── .hermes/plans/                     # Implementation plan
 ```
 
@@ -220,13 +250,12 @@ challenge_dev/
 
 ## Next Steps (Phase 2 — Frontend)
 
-Per the implementation plan, the remaining work is:
-
-1. **Build frontend pages** — login.html, dashboard.html with CSS
-2. **Wire frontend to backend** — `fetch()` wrappers in JavaScript
-3. **End-to-end validation** — full login → browse → filter → save → retrieve flow
-4. **Connect real PostgreSQL** — swap in-memory mocks in `main.go` for actual pgx repository implementations
-5. **Integrate datos.gov.co** — fetch live SECOP II data via SODA API and cache in `public_calls_proposals` table
+1. **Build frontend pages** — `login.html`, `dashboard.html` with CSS sheets
+2. **Create JavaScript API client** — `api.js` with `fetch()` wrappers
+3. **Wire login flow** — login page → JWT storage → redirect to dashboard
+4. **Build proposal browse UI** — search, filter, paginate, save proposals
+5. **Connect real PostgreSQL** — swap in-memory mocks for pgx repos in `main.go`
+6. **End-to-end validation** — full login → browse → filter → save → retrieve flow
 
 ---
 
@@ -234,7 +263,8 @@ Per the implementation plan, the remaining work is:
 
 | Risk | Mitigation |
 |------|------------|
-| datos.gov.co API shape may differ from UI needs | Normalization layer isolated in repository |
-| Auth is minimal (HMAC tokens) | Can be upgraded to real JWT or OAuth later |
-| No real DB connection in main.go yet | `database/postgres.go` has `NewPool()` ready; swap mocks once DB integration needed |
-| Frontend is static (no build tool) | Fine for MVP; can add framework later if needed |
+| datos.gov.co API rate limits | Service has 30s timeout; pagination with `$limit`/`$offset` ready |
+| Real DB not connected yet | `postgres_*.go` repos are ready; `database/postgres.go` has `NewPool()` |
+| Static frontend (no framework) | Fine for MVP; can add React/Vue later if needed |
+| No refresh token mechanism | Token is 1h; user must re-login after expiry |
+| Mock data for saved proposals | Real DB integration needed for persistence across restarts |
