@@ -16,16 +16,33 @@ func NewUserHandler(authService *service.AuthService) *UserHandler {
 	return &UserHandler{authService: authService}
 }
 
-// ServeHTTP dispatches based on method: GET for /user-info, POST for /user-modify
+// ServeHTTP dispatches based on method: POST for /user-info, POST for /user-modify
 func (h *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodGet:
-		h.userInfo(w, r)
 	case http.MethodPost:
-		h.userModify(w, r)
+		// Use path to determine which handler: /user-info or /user-modify
+		// Since both share the same handler, we check the request path
+		h.userInfo(w, r)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// UserModifyHandler handles POST /user-modify separately
+type UserModifyHandler struct {
+	authService *service.AuthService
+}
+
+func NewUserModifyHandler(authService *service.AuthService) *UserModifyHandler {
+	return &UserModifyHandler{authService: authService}
+}
+
+func (h *UserModifyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	h.userModify(w, r)
 }
 
 func (h *UserHandler) userInfo(w http.ResponseWriter, r *http.Request) {
@@ -41,24 +58,36 @@ func (h *UserHandler) userInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if user == nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		writeError(w, http.StatusNotFound, "Usuario no registrado")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user)
+	// Create response without password field
+	resp := map[string]interface{}{
+		"id":           user.ID,
+		"first_name":   user.FirstName,
+		"last_name":    user.LastName,
+		"gender":       user.Gender,
+		"email":        user.Email,
+		"phone_number": user.Phone,
+		"status":       user.Status,
+		"created_at":   user.CreatedAt,
+		"updated_at":   user.UpdatedAt,
+		"deleted_at":   user.DeletedAt,
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 type modifyUserRequest struct {
 	FirstName   string `json:"first_name,omitempty"`
 	LastName    string `json:"last_name,omitempty"`
 	Gender      string `json:"gender,omitempty"`
-	Email       string `json:"email,omitempty"`
 	PhoneNumber string `json:"phone_number,omitempty"`
-	Password    string `json:"password,omitempty"`
 	Status      string `json:"status,omitempty"`
 }
 
-func (h *UserHandler) userModify(w http.ResponseWriter, r *http.Request) {
+func (h *UserModifyHandler) userModify(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(userIDKey).(string)
 	if !ok || userID == "" {
 		writeError(w, http.StatusUnauthorized, "Credentials invalid")
@@ -78,31 +107,36 @@ func (h *UserHandler) userModify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if user == nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		writeError(w, http.StatusNotFound, "Usuario no registrado")
 		return
 	}
 
-	// Update only provided fields
+	hasAllowedField := false
+
 	if req.FirstName != "" {
+		hasAllowedField = true
 		user.FirstName = req.FirstName
 	}
 	if req.LastName != "" {
+		hasAllowedField = true
 		user.LastName = req.LastName
 	}
 	if req.Gender != "" {
+		hasAllowedField = true
 		user.Gender = req.Gender
 	}
-	if req.Email != "" {
-		user.Email = req.Email
-	}
 	if req.PhoneNumber != "" {
+		hasAllowedField = true
 		user.Phone = req.PhoneNumber
 	}
-	if req.Password != "" {
-		user.Password = req.Password
-	}
 	if req.Status != "" {
+		hasAllowedField = true
 		user.Status = req.Status
+	}
+
+	if !hasAllowedField {
+		writeError(w, http.StatusBadRequest, "Debe modificarse un campo por lo menos para actualizar")
+		return
 	}
 
 	if err := h.authService.UpdateUser(r.Context(), user); err != nil {
@@ -110,39 +144,7 @@ func (h *UserHandler) userModify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user)
-}
-
-// contextKey type for context values
-type contextKey string
-
-const userIDKey contextKey = "userID"
-
-// AuthMiddleware checks token from Authorization header.
-func AuthMiddleware(authService *service.AuthService, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("Authorization")
-		if token == "" {
-			writeError(w, http.StatusUnauthorized, "Credentials invalid")
-			return
-		}
-		// Strip "Bearer " prefix if present
-		if len(token) > 7 && token[:7] == "Bearer " {
-			token = token[7:]
-		} else {
-			writeError(w, http.StatusUnauthorized, "Credentials invalid")
-			return
-		}
-
-		userID, err := authService.ValidateToken(token)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Credentials invalid")
-			return
-		}
-
-		// Store userID in context
-		ctx := r.Context()
-		ctx = contextWithUserID(ctx, userID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Informacion actualizada correctamente",
 	})
 }

@@ -22,10 +22,13 @@ func NewRouter(
 	mux.Handle("/login", handler.NewAuthHandler(authService))
 	mux.Handle("/user-create", handler.NewCreateUserHandler(authService))
 
-	// User info/modify - auth required
+	// User info - auth required (POST)
 	userHandler := handler.NewUserHandler(authService)
 	mux.Handle("/user-info", handler.AuthMiddleware(authService, userHandler))
-	mux.Handle("/user-modify", handler.AuthMiddleware(authService, userHandler))
+
+	// User modify - auth required (POST)
+	userModifyHandler := handler.NewUserModifyHandler(authService)
+	mux.Handle("/user-modify", handler.AuthMiddleware(authService, userModifyHandler))
 
 	// Proposals - auth required, fetches from datos.gov.co
 	proposalHandler := handler.NewProposalHandler(datosGovService)

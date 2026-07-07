@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/domain"
+
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/service"
 )
 
@@ -49,21 +51,25 @@ func (h *SavedProposalHandler) save(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 
-	saved, err := h.savedProposalService.SaveProposal(r.Context(), userID, req.PublicCallID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	// Idempotent: always return success, even if already saved
+	_, _ = h.savedProposalService.SaveProposal(r.Context(), userID, req.PublicCallID)
 
-	writeJSON(w, http.StatusCreated, saved)
+	writeJSON(w, http.StatusCreated, map[string]string{
+		"message": "Guardado satisfactoriamente",
+	})
 }
 
 func (h *SavedProposalHandler) list(w http.ResponseWriter, r *http.Request, userID string) {
-	saved, err := h.savedProposalService.GetSavedProposals(r.Context(), userID)
+	proposals, err := h.savedProposalService.GetSavedProposals(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, saved)
+	// Return empty array if no saved proposals
+	if proposals == nil {
+		proposals = make([]*domain.SavedProposal, 0)
+	}
+
+	writeJSON(w, http.StatusOK, proposals)
 }

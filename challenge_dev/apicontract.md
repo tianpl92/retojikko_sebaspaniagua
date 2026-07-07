@@ -14,8 +14,8 @@
 | 1 | `GET` | `/health` | ❌ | Health check |
 | 2 | `POST` | `/user-create` | ❌ | Register a new user |
 | 3 | `POST` | `/login` | ❌ | Authenticate and get JWT |
-| 4 | `GET` | `/user-info` | ✅ | Get current user profile |
-| 5 | `POST` | `/user-modify` | ✅ | Update current user |
+| 4 | `POST` | `/user-info` | ✅ | Get current user profile |
+| 5 | `POST` | `/user-modify` | ✅ | Update current user profile fields |
 | 6 | `GET` | `/public-proposals` | ✅ | List public proposals from datos.gov.co |
 | 7 | `GET` | `/saved_proposals` | ✅ | List user's saved proposals |
 | 8 | `POST` | `/saved-proposals` | ✅ | Save a proposal for current user |
@@ -156,11 +156,9 @@ Authenticate with email and password. Returns a JWT token valid for **1 hour**.
 
 ## 4. Get User Info
 
-**Protocol:** `GET /user-info`
+**Protocol:** `POST /user-info`
 
-**Auth:** `Authorization: Bearer <JWT-token>`
-
-Returns the authenticated user's profile.
+**Auth:** `Authorization: Bearer <JWT-t...urns the authenticated user's profile information. Password is never included in the response.
 
 ### Input
 
@@ -168,14 +166,14 @@ Returns the authenticated user's profile.
 |--------|-------|
 | `Authorization` | `Bearer <jwt-token>` |
 
-No query or body parameters.
+No body parameters required.
 
-### Response — `200 OK`
+### Response - 200 OK
 
 ```json
 {
   "id": "1234567890",
-  "first_name": "Sebastián",
+  "first_name": "Sebastian",
   "last_name": "Paniagua",
   "gender": "M",
   "email": "sebastian@example.com",
@@ -191,8 +189,8 @@ No query or body parameters.
 
 | Status | Condition | Body |
 |--------|-----------|------|
-| `401 Unauthorized` | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
-| `404 Not Found` | User not found | `{"error":"user not found"}` |
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+| 404 Not Found | User not found | `{"error":"Usuario no registrado"}` |
 
 ---
 
@@ -200,51 +198,37 @@ No query or body parameters.
 
 **Protocol:** `POST /user-modify`
 
-**Auth:** `Authorization: Bearer <JWT-token>`
-
-Update profile fields for the authenticated user. Only provided fields are updated.
-
-### Input
-
-| Header | Value |
-|--------|-------|
-| `Authorization` | `Bearer <jwt-token>` |
-
-### Input Parameters (all optional)
+**Auth:** `Authorization: Bearer <JWT-t...Input Parameters (all optional)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `first_name` | string | New first name |
 | `last_name` | string | New last name |
 | `gender` | string | New gender |
-| `email` | string | New email |
 | `phone_number` | string | New phone number |
-| `password` | string | New password (will be bcrypt-hashed) |
-| `status` | string | New status (`AC` / `IN`) |
+| `status` | string | New status (AC / IN) |
+
+> **Note:** The fields `id`, `email`, and `password` cannot be modified through this endpoint. If provided, they will be ignored.
+
+### Validation Rules
+
+- At least one allowed field must be provided.
+- If no allowed fields are present, the request is rejected.
 
 ### Example Request
 
 ```json
 {
-  "first_name": "Sebastián Alejandro",
+  "first_name": "Sebastian Alejandro",
   "phone_number": "3009876543"
 }
 ```
 
-### Response — `200 OK`
+### Response - 200 OK
 
 ```json
 {
-  "id": "1234567890",
-  "first_name": "Sebastián Alejandro",
-  "last_name": "Paniagua",
-  "gender": "M",
-  "email": "sebastian@example.com",
-  "phone_number": "3009876543",
-  "status": "AC",
-  "created_at": "2026-07-06T14:30:00.000000-05:00",
-  "updated_at": "2026-07-06T14:35:00.000000-05:00",
-  "deleted_at": null
+  "message": "Informacion actualizada correctamente"
 }
 ```
 
@@ -252,8 +236,9 @@ Update profile fields for the authenticated user. Only provided fields are updat
 
 | Status | Condition | Body |
 |--------|-----------|------|
-| `401 Unauthorized` | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
-| `400 Bad Request` | Invalid JSON body | `{"error":"invalid request body"}` |
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+| 400 Bad Request | No allowed fields provided | `{"error":"Debe modificarse un campo por lo menos para actualizar"}` |
+| 400 Bad Request | Invalid JSON body | `{"error":"invalid request body"}` |
 
 ---
 
@@ -335,9 +320,7 @@ Returns a JSON array of objects. Each object uses the **original column names fr
 
 **Protocol:** `GET /saved_proposals`
 
-**Auth:** `Authorization: Bearer <JWT-token>`
-
-Returns the authenticated user's saved (favorited) proposals.
+**Auth:** `Authorization: Bearer <JWT-t...urns the authenticated user's saved proposals. Returns an empty array `[]` if the user has no saved proposals.
 
 ### Input
 
@@ -347,13 +330,13 @@ Returns the authenticated user's saved (favorited) proposals.
 
 No query or body parameters.
 
-### Response — `200 OK`
+### Response - 200 OK
 
 ```json
 [
   {
-    "id": "mock-uuid-1",
-    "public_call_id": 12345,
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "public_call_id": "CO1.REQ.2577563",
     "user_id": "1234567890",
     "association_date": "2026-07-06T14:40:00.000000-05:00",
     "created_at": "2026-07-06T14:40:00.000000-05:00",
@@ -363,11 +346,17 @@ No query or body parameters.
 ]
 ```
 
+### Empty Response (no saved proposals)
+
+```json
+[]
+```
+
 ### Error Responses
 
 | Status | Condition | Body |
 |--------|-----------|------|
-| `401 Unauthorized` | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
 
 ---
 
@@ -375,9 +364,7 @@ No query or body parameters.
 
 **Protocol:** `POST /saved-proposals`
 
-**Auth:** `Authorization: Bearer <JWT-token>`
-
-Save (favorite) a public proposal for the authenticated user.
+**Auth:** `Authorization: Bearer <JWT-t...Save a public proposal for the authenticated user. This endpoint is **idempotent** - if the proposal is already saved, it still returns a success response without creating duplicate records.
 
 ### Input
 
@@ -390,7 +377,7 @@ Save (favorite) a public proposal for the authenticated user.
 
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
-| `public_call_id` | string | ✅ | ID of the proposal to save |
+| `public_call_id` | string | Yes | ID of the proposal to save |
 
 ### Example Request
 
@@ -400,17 +387,11 @@ Save (favorite) a public proposal for the authenticated user.
 }
 ```
 
-### Response — `201 Created`
+### Response - 201 Created
 
 ```json
 {
-  "id": "mock-uuid-2",
-  "public_call_id": 12345,
-  "user_id": "1234567890",
-  "association_date": "2026-07-06T14:45:00.000000-05:00",
-  "created_at": "2026-07-06T14:45:00.000000-05:00",
-  "updated_at": "2026-07-06T14:45:00.000000-05:00",
-  "deleted_at": null
+  "message": "Guardado satisfactoriamente"
 }
 ```
 
@@ -418,8 +399,9 @@ Save (favorite) a public proposal for the authenticated user.
 
 | Status | Condition | Body |
 |--------|-----------|------|
-| `401 Unauthorized` | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
-| `400 Bad Request` | Invalid JSON body | `{"error":"invalid request body"}` |
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+| 400 Bad Request | Invalid JSON body | `{"error":"invalid request body"}` |
+| 400 Bad Request | Missing public_call_id | `{"error":"public_call_id is required"}` |
 
 ---
 

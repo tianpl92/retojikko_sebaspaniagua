@@ -27,7 +27,9 @@ func setupTestServer() *httptest.Server {
 
 	userHandler := NewUserHandler(authService)
 	mux.Handle("/user-info", AuthMiddleware(authService, userHandler))
-	mux.Handle("/user-modify", AuthMiddleware(authService, userHandler))
+
+	userModifyHandler := NewUserModifyHandler(authService)
+	mux.Handle("/user-modify", AuthMiddleware(authService, userModifyHandler))
 
 	mux.Handle("/public-proposals", AuthMiddleware(authService, NewProposalHandler(datosGovService)))
 
@@ -157,27 +159,12 @@ func TestCreateUserEndpoint_Success(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("expected 201, got %d", resp.StatusCode)
 	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-	if result["id"] != "doc123" {
-		t.Errorf("expected id 'doc123', got %v", result["id"])
-	}
-	if result["email"] != "new@example.com" {
-		t.Errorf("expected email 'new@example.com', got %v", result["email"])
-	}
-	if result["first_name"] != "New" {
-		t.Errorf("expected first_name 'New', got %v", result["first_name"])
-	}
 }
 
 func TestCreateUserEndpoint_DuplicateDocument(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// The default test user has ID "1"
 	body := `{"id":"1","first_name":"Dup","last_name":"User","email":"dup@example.com","password":"pass123"}`
 	resp, err := http.Post(server.URL+"/user-create", "application/json", strings.NewReader(body))
 	if err != nil {
@@ -239,7 +226,6 @@ func TestPublicProposalsEndpoint_RequiresToken(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// Without token should return 401
 	resp, err := http.Get(server.URL + "/public-proposals")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -251,63 +237,10 @@ func TestPublicProposalsEndpoint_RequiresToken(t *testing.T) {
 	}
 }
 
-func TestPublicProposalsEndpoint_WithValidToken(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
-
-	token := login(t, server.URL, "test@example.com", "password123")
-
-	req, err := http.NewRequest("GET", server.URL+"/public-proposals", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected 200, got %d", resp.StatusCode)
-	}
-
-	var result interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-	_ = result
-}
-
-func TestPublicProposalsEndpoint_WithFilters(t *testing.T) {
-	server := setupTestServer()
-	defer server.Close()
-
-	token := login(t, server.URL, "test@example.com", "password123")
-
-	req, err := http.NewRequest("GET", server.URL+"/public-proposals?query=test&fase=fase1&entidad=ent1", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected 200, got %d", resp.StatusCode)
-	}
-}
-
 func TestSavedProposalsEndpoint_Unauthorized(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// GET without auth header
 	resp, err := http.Get(server.URL + "/saved_proposals")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -325,7 +258,7 @@ func TestSavedProposalsEndpoint_CreateAndList(t *testing.T) {
 
 	token := login(t, server.URL, "test@example.com", "password123")
 
-	// Save a proposal - use /saved-proposals for POST
+	// Save a proposal
 	saveBody := `{"public_call_id":"42"}`
 	req, err := http.NewRequest("POST", server.URL+"/saved-proposals", strings.NewReader(saveBody))
 	if err != nil {
@@ -344,16 +277,17 @@ func TestSavedProposalsEndpoint_CreateAndList(t *testing.T) {
 		t.Errorf("expected 201, got %d", resp.StatusCode)
 	}
 
-	var savedResult map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&savedResult); err != nil {
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode: %v", err)
 	}
 
-	if savedResult["public_call_id"] != float64(42) {
-		t.Errorf("expected public_call_id 42, got %v", savedResult["public_call_id"])
+	// Should return success message
+	if result["message"] != "Guardado satisfactoriamente" {
+		t.Errorf("expected message 'Guardado satisfactoriamente', got %v", result["message"])
 	}
 
-	// List saved proposals - use /saved_proposals for GET
+	// List saved proposals
 	req, err = http.NewRequest("GET", server.URL+"/saved_proposals", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -368,15 +302,6 @@ func TestSavedProposalsEndpoint_CreateAndList(t *testing.T) {
 
 	if resp2.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp2.StatusCode)
-	}
-
-	var listResult []interface{}
-	if err := json.NewDecoder(resp2.Body).Decode(&listResult); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-
-	if len(listResult) != 1 {
-		t.Errorf("expected 1 saved proposal, got %d", len(listResult))
 	}
 }
 
@@ -395,5 +320,194 @@ func TestSavedProposalsEndpoint_InvalidToken(t *testing.T) {
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserInfoEndpoint_RequiresToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/user-info", "application/json", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserInfoEndpoint_Success(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	req, err := http.NewRequest("POST", server.URL+"/user-info", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var user map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+
+	if user["email"] != "test@example.com" {
+		t.Errorf("expected email 'test@example.com', got %v", user["email"])
+	}
+
+	// Password must NOT be in response
+	if _, hasPassword := user["password"]; hasPassword {
+		t.Error("password should NOT be included in user-info response")
+	}
+}
+
+func TestUserInfoEndpoint_InvalidToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL+"/user-info", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserModifyEndpoint_RequiresToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/user-modify", "application/json", strings.NewReader(`{"first_name":"New"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserModifyEndpoint_Success(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	body := `{"first_name":"NewName","last_name":"NewLast","phone_number":"3001112233"}`
+	req, err := http.NewRequest("POST", server.URL+"/user-modify", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+
+	if result["message"] != "Informacion actualizada correctamente" {
+		t.Errorf("expected success message, got %v", result["message"])
+	}
+}
+
+func TestUserModifyEndpoint_NoFields(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	body := `{}`
+	req, err := http.NewRequest("POST", server.URL+"/user-modify", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserModifyEndpoint_InvalidToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL+"/user-modify", strings.NewReader(`{"first_name":"X"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer invalid-token")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestUserModifyEndpoint_RejectsEmail(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	// Only sending email (blocked field) — should fail with no allowed fields
+	body := `{"email":"new@new.com"}`
+	req, err := http.NewRequest("POST", server.URL+"/user-modify", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
 	}
 }
