@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Crear Cuenta — Portal de Convocatorias Públicas</title>
   <link rel="stylesheet" href="../sheets/styles.css">
+  <script>
+    const BACKEND_URL = "http://localhost:8888";
+    const ENDPOINTS = {
+      LOGIN:       "/login",
+      USER_CREATE: "/user-create",
+      HEALTH:      "/health",
+      USER_INFO:   "/user-info",
+      USER_MODIFY: "/user-modify",
+      PROPOSALS:   "/public-proposals",
+      SAVED_LIST:  "/saved_proposals",
+      SAVED_SAVE:  "/saved-proposals",
+    };
+  </script>
+  <script src="../scripts/user-create.js"></script>
 </head>
 <body>
   <div class="page-wrapper">
@@ -14,7 +28,7 @@
         <p>Regístrate en el Portal de Convocatorias</p>
       </div>
 
-      <form>
+      <form onsubmit="handleUserCreate(event)">
         <!-- Número de Documento -->
         <div class="form-group">
           <label for="documento">Número de Documento</label>

@@ -7,12 +7,12 @@ import (
 	"github.com/tianpl92/retojikko_sebaspaniagua/challenge_dev/backend/internal/service"
 )
 
-// NewRouter creates and returns a configured http.ServeMux.
+// NewRouter creates and returns a configured http.ServeMux with CORS support.
 func NewRouter(
 	authService *service.AuthService,
 	datosGovService *service.DatosGovService,
 	savedProposalService *service.SavedProposalService,
-) *http.ServeMux {
+) http.Handler {
 	mux := http.NewServeMux()
 
 	// Health - no auth required
@@ -39,5 +39,22 @@ func NewRouter(
 	mux.Handle("/saved_proposals", handler.AuthMiddleware(authService, savedProposalHandler))
 	mux.Handle("/saved-proposals", handler.AuthMiddleware(authService, savedProposalHandler))
 
-	return mux
+	return corsMiddleware(mux)
+}
+
+// corsMiddleware adds CORS headers to allow cross-origin requests
+// from file:// and HTTP frontend origins during development.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
