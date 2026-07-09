@@ -30,3 +30,8 @@ func (s *ProposalService) ListWithFilters(ctx context.Context, query, fase, enti
 func (s *ProposalService) FilterProposals(ctx context.Context, query, fase, entidad string, limit, offset int) ([]*domain.PublicCallProposal, error) {
 	return s.ListWithFilters(ctx, query, fase, entidad, limit, offset)
 }
+
+// SaveProposal upserts (creates or updates) a proposal in the local repository.
+func (s *ProposalService) SaveProposal(ctx context.Context, proposal *domain.PublicCallProposal) (*domain.PublicCallProposal, error) {
+	return s.proposalRepo.Upsert(ctx, proposal)
+}

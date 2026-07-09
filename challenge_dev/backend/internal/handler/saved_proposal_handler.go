@@ -60,16 +60,22 @@ func (h *SavedProposalHandler) save(w http.ResponseWriter, r *http.Request, user
 }
 
 func (h *SavedProposalHandler) list(w http.ResponseWriter, r *http.Request, userID string) {
-	proposals, err := h.savedProposalService.GetSavedProposals(r.Context(), userID)
+	proposals, err := h.savedProposalService.GetSavedProposalsWithProposals(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Return empty array if no saved proposals
-	if proposals == nil {
-		proposals = make([]*domain.SavedProposal, 0)
+	// Convert to the public response shape (SavedProposalFullData)
+	var result []*domain.SavedProposalFullData
+	if len(proposals) > 0 {
+		result = make([]*domain.SavedProposalFullData, len(proposals))
+		for i, p := range proposals {
+			result[i] = p.ToFullData()
+		}
+	} else {
+		result = make([]*domain.SavedProposalFullData, 0)
 	}
 
-	writeJSON(w, http.StatusOK, proposals)
+	writeJSON(w, http.StatusOK, result)
 }

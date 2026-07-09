@@ -77,21 +77,24 @@ function renderGrid(items) {
 
   if (!items || items.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="4" style="text-align:center;padding:40px;color:#7a7a8e;">No hay convocatorias guardadas</td></tr>';
+      '<tr><td colspan="5" style="text-align:center;padding:40px;color:#7a7a8e;">No hay convocatorias guardadas</td></tr>';
     return;
   }
 
   let html = "";
   for (let i = 0; i < items.length; i++) {
     const p = items[i];
-    const procId = p.public_call_id != null ? p.public_call_id : "—";
-    const assocDate = formatDate(p.association_date);
-    const createdDate = formatDate(p.created_at);
+    const estado = p.estado_del_procedimiento || "—";
+    const badgeClass = badgeForStatus(estado);
+    const safeNombre = escHtml(p.nombre_del_procedimiento || "—");
+    const safeEntidad = escHtml(p.entidad || "—");
+    const safeId = escHtml(p.id_del_proceso || (p.public_call_id != null ? String(p.public_call_id) : "—"));
 
     html += "<tr>";
-    html += "<td>" + escHtml(String(procId)) + "</td>";
-    html += "<td>" + escHtml(assocDate) + "</td>";
-    html += "<td>" + escHtml(createdDate) + "</td>";
+    html += "<td>" + safeNombre + "</td>";
+    html += "<td>" + safeEntidad + "</td>";
+    html += "<td>" + safeId + "</td>";
+    html += '<td><span class="badge ' + badgeClass + '">' + escHtml(estado) + "</span></td>";
     html += '<td><button class="btn-details" onclick="showDetail(' + i + ')">Detalles...</button></td>';
     html += "</tr>";
   }
@@ -100,36 +103,39 @@ function renderGrid(items) {
 }
 
 // =============================================
-// Format date helper
-// =============================================
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("es-CO", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch (e) {
-    return dateStr;
-  }
-}
-
-// =============================================
 // Detail Modal
 // =============================================
 const LABEL_MAP = {
-  id: "ID Asociación",
-  public_call_id: "ID del Proceso",
-  user_id: "ID Usuario",
-  association_date: "Fecha de Asociación",
-  created_at: "Fecha de Creación",
-  updated_at: "Última Actualización",
-  deleted_at: "Fecha de Eliminación",
+  nombre_del_procedimiento: "Nombre del Procedimiento",
+  entidad: "Entidad",
+  nit_entidad: "NIT Entidad",
+  departamento_entidad: "Departamento",
+  ciudad_entidad: "Ciudad",
+  ordenentidad: "Orden",
+  id_del_proceso: "ID del Proceso",
+  referencia_del_proceso: "Referencia",
+  descripci_n_del_procedimiento: "Descripción",
+  fase: "Fase",
+  fecha_de_publicacion_del: "Fecha de Publicación",
+  fecha_de_ultima_publicaci: "Última Publicación",
+  fecha_de_recepcion_de: "Fecha de Recepción",
+  modalidad_de_contratacion: "Modalidad",
+  precio_base: "Precio Base",
+  duracion: "Duración",
+  unidad_de_duracion: "Unidad de Duración",
+  estado_del_procedimiento: "Estado",
+  estado_de_apertura_del_proceso: "Estado de Apertura",
+  estado_resumen: "Estado Resumen",
+  adjudicado: "Adjudicado",
+  nombre_del_proveedor: "Proveedor",
+  valor_total_adjudicacion: "Valor Total",
+  codigo_principal_de_categoria: "Categoría",
+  tipo_de_contrato: "Tipo de Contrato",
+  urlproceso: "URL del Proceso",
+  proveedores_invitados: "Proveedores Invitados",
+  proveedores_que_manifestaron: "Proveedores Manifestados",
+  respuestas_al_procedimiento: "Respuestas",
+  numero_de_lotes: "Número de Lotes",
 };
 
 function showDetail(index) {
@@ -137,12 +143,23 @@ function showDetail(index) {
   if (!p) return;
 
   document.getElementById("modalTitle").textContent =
-    "Detalle — ID Proceso: " + (p.public_call_id != null ? p.public_call_id : "—");
+    p.nombre_del_procedimiento || "Detalle — ID Proceso: " + (p.id_del_proceso || "—");
 
   const grid = document.getElementById("detailGrid");
   grid.innerHTML = "";
 
-  const fields = ["id", "public_call_id", "user_id", "association_date", "created_at", "updated_at", "deleted_at"];
+  const fields = [
+    "nombre_del_procedimiento", "entidad", "nit_entidad", "departamento_entidad",
+    "ciudad_entidad", "ordenentidad", "id_del_proceso", "referencia_del_proceso",
+    "descripci_n_del_procedimiento", "fase", "fecha_de_publicacion_del",
+    "fecha_de_ultima_publicaci", "fecha_de_recepcion_de",
+    "modalidad_de_contratacion", "precio_base", "duracion", "unidad_de_duracion",
+    "estado_del_procedimiento", "estado_de_apertura_del_proceso", "estado_resumen",
+    "adjudicado", "nombre_del_proveedor", "valor_total_adjudicacion",
+    "codigo_principal_de_categoria", "tipo_de_contrato", "urlproceso",
+    "proveedores_invitados", "proveedores_que_manifestaron",
+    "respuestas_al_procedimiento", "numero_de_lotes",
+  ];
 
   for (const field of fields) {
     const label = LABEL_MAP[field] || field;
@@ -150,14 +167,24 @@ function showDetail(index) {
 
     if (value == null || value === "") value = "—";
 
-    if (field === "association_date" || field === "created_at" || field === "updated_at" || field === "deleted_at") {
-      value = formatDate(value);
+    if (field === "precio_base" && value !== "—") {
+      const num = Number(value);
+      value = "$" + num.toLocaleString("es-CO", { minimumFractionDigits: 2 });
     }
 
-    const isLong = field === "public_call_id";
+    if (field === "valor_total_adjudicacion" && value !== "—") {
+      const num = Number(value);
+      value = "$" + num.toLocaleString("es-CO", { minimumFractionDigits: 2 });
+    }
+
+    if (field === "urlproceso" && value !== "—") {
+      value = '<a href="' + escHtml(value) + '" target="_blank" rel="noopener">Ver en SECOP II &rarr;</a>';
+    }
+
+    const isLong = field === "descripci_n_del_procedimiento" || field === "nombre_del_procedimiento";
     const div = document.createElement("div");
     div.className = "detail-item" + (isLong ? " full-width" : "");
-    div.innerHTML = '<div class="label">' + label + '</div><div class="value">' + escHtml(String(value)) + "</div>";
+    div.innerHTML = '<div class="label">' + label + '</div><div class="value">' + value + "</div>";
     grid.appendChild(div);
   }
 
@@ -182,6 +209,15 @@ function hideLoading() {
 // =============================================
 // Helpers
 // =============================================
+function badgeForStatus(estado) {
+  const s = (estado || "").toLowerCase();
+  if (s.includes("public") || s.includes("abierto") || s.includes("presentaci"))
+    return "badge-published";
+  if (s.includes("cerrado") || s.includes("adjudicado") || s.includes("terminado"))
+    return "badge-closed";
+  return "badge-draft";
+}
+
 function escHtml(str) {
   if (typeof str !== "string") return String(str || "");
   return str

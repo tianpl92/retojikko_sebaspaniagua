@@ -310,7 +310,25 @@ async function saveSelectedProposals() {
     if (!proposal || !proposal.id_del_proceso) continue;
 
     try {
-      const response = await fetch(BACKEND_URL + ENDPOINTS.SAVED_SAVE, {
+      // Step 1: Save full proposal data locally
+      // Map id_del_proceso → id (backend expects "id" field)
+      const savePayload = { ...proposal, id: proposal.id_del_proceso };
+      const saveResp = await fetch(BACKEND_URL + "/proposal-save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(savePayload),
+      });
+
+      if (!saveResp.ok && saveResp.status !== 400) {
+        errorCount++;
+        continue;
+      }
+
+      // Step 2: Create user-proposal association
+      const assocResp = await fetch(BACKEND_URL + ENDPOINTS.SAVED_SAVE, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -319,7 +337,7 @@ async function saveSelectedProposals() {
         body: JSON.stringify({ public_call_id: proposal.id_del_proceso }),
       });
 
-      if (response.ok || response.status === 400) {
+      if (assocResp.ok || assocResp.status === 400) {
         successCount++;
       } else {
         errorCount++;

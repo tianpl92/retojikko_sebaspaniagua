@@ -136,6 +136,141 @@ func (r *PostgresProposalRepository) FindByID(ctx context.Context, id string) (*
 	return proposal, nil
 }
 
+// Upsert creates or updates a proposal in the local repository.
+func (r *PostgresProposalRepository) Upsert(ctx context.Context, proposal *domain.PublicCallProposal) (*domain.PublicCallProposal, error) {
+	query := `
+		INSERT INTO public_calls_proposals (
+			id, nombre_del_procedimiento, entidad, nit_entidad,
+			departamento_entidad, ciudad_entidad, ordenentidad,
+			referencia_del_proceso, descripci_n_del_procedimiento,
+			fase, fecha_de_publicacion_del, fecha_de_ultima_publicaci,
+			modalidad_de_contratacion, precio_base, duracion,
+			unidad_de_duracion, fecha_de_recepcion_de,
+			estado_del_procedimiento, adjudicado, nombre_del_proveedor,
+			valor_total_adjudicacion, urlproceso,
+			codigo_principal_de_categoria, tipo_de_contrato,
+			estado_de_apertura_del_proceso, estado_resumen,
+			proveedores_invitados, proveedores_que_manifestaron,
+			respuestas_al_procedimiento, numero_de_lotes,
+			created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4,
+			$5, $6, $7,
+			$8, $9,
+			$10, $11, $12,
+			$13, $14, $15,
+			$16, $17,
+			$18, $19, $20,
+			$21, $22,
+			$23, $24,
+			$25, $26,
+			$27, $28, $29,
+			$30,
+			$31, $32
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			nombre_del_procedimiento = EXCLUDED.nombre_del_procedimiento,
+			entidad = EXCLUDED.entidad,
+			nit_entidad = EXCLUDED.nit_entidad,
+			departamento_entidad = EXCLUDED.departamento_entidad,
+			ciudad_entidad = EXCLUDED.ciudad_entidad,
+			ordenentidad = EXCLUDED.ordenentidad,
+			referencia_del_proceso = EXCLUDED.referencia_del_proceso,
+			descripci_n_del_procedimiento = EXCLUDED.descripci_n_del_procedimiento,
+			fase = EXCLUDED.fase,
+			fecha_de_publicacion_del = EXCLUDED.fecha_de_publicacion_del,
+			fecha_de_ultima_publicaci = EXCLUDED.fecha_de_ultima_publicaci,
+			modalidad_de_contratacion = EXCLUDED.modalidad_de_contratacion,
+			precio_base = EXCLUDED.precio_base,
+			duracion = EXCLUDED.duracion,
+			unidad_de_duracion = EXCLUDED.unidad_de_duracion,
+			fecha_de_recepcion_de = EXCLUDED.fecha_de_recepcion_de,
+			estado_del_procedimiento = EXCLUDED.estado_del_procedimiento,
+			adjudicado = EXCLUDED.adjudicado,
+			nombre_del_proveedor = EXCLUDED.nombre_del_proveedor,
+			valor_total_adjudicacion = EXCLUDED.valor_total_adjudicacion,
+			urlproceso = EXCLUDED.urlproceso,
+			codigo_principal_de_categoria = EXCLUDED.codigo_principal_de_categoria,
+			tipo_de_contrato = EXCLUDED.tipo_de_contrato,
+			estado_de_apertura_del_proceso = EXCLUDED.estado_de_apertura_del_proceso,
+			estado_resumen = EXCLUDED.estado_resumen,
+			proveedores_invitados = EXCLUDED.proveedores_invitados,
+			proveedores_que_manifestaron = EXCLUDED.proveedores_que_manifestaron,
+			respuestas_al_procedimiento = EXCLUDED.respuestas_al_procedimiento,
+			numero_de_lotes = EXCLUDED.numero_de_lotes,
+			updated_at = NOW()
+		RETURNING
+			id, nombre_del_procedimiento, entidad, nit_entidad,
+			departamento_entidad, ciudad_entidad, ordenentidad,
+			referencia_del_proceso, descripci_n_del_procedimiento,
+			fase, fecha_de_publicacion_del, fecha_de_ultima_publicaci,
+			modalidad_de_contratacion, precio_base, duracion,
+			unidad_de_duracion, fecha_de_recepcion_de,
+			estado_del_procedimiento, adjudicado, nombre_del_proveedor,
+			valor_total_adjudicacion, urlproceso,
+			codigo_principal_de_categoria, tipo_de_contrato,
+			estado_de_apertura_del_proceso, estado_resumen,
+			proveedores_invitados, proveedores_que_manifestaron,
+			respuestas_al_procedimiento, numero_de_lotes,
+			created_at, updated_at, deleted_at
+	`
+	row := r.pool.QueryRow(ctx, query,
+		proposal.ID,
+		proposal.NombreDelProcedimiento,
+		proposal.Entidad,
+		proposal.NitEntidad,
+		proposal.DepartamentoEntidad,
+		proposal.CiudadEntidad,
+		proposal.OrdenEntidad,
+		proposal.ReferenciaDelProceso,
+		proposal.DescripcionDelProcedimiento,
+		proposal.Fase,
+		proposal.FechaDePublicacionDel,
+		proposal.FechaDeUltimaPublicaci,
+		proposal.ModalidadDeContratacion,
+		proposal.PrecioBase,
+		proposal.Duracion,
+		proposal.UnidadDeDuracion,
+		proposal.FechaDeRecepcionDe,
+		proposal.EstadoDelProcedimiento,
+		proposal.Adjudicado,
+		proposal.NombreDelProveedor,
+		proposal.ValorTotalAdjudicacion,
+		proposal.URLProceso,
+		proposal.CodigoPrincipalDeCategoria,
+		proposal.TipoDeContrato,
+		proposal.EstadoDeAperturaDelProceso,
+		proposal.EstadoResumen,
+		proposal.ProveedoresInvitados,
+		proposal.ProveedoresQueManifestaron,
+		proposal.RespuestasAlProcedimiento,
+		proposal.NumeroDeLotes,
+		proposal.CreatedAt,
+		proposal.UpdatedAt,
+	)
+	result := &domain.PublicCallProposal{}
+	err := row.Scan(
+		&result.ID,
+		&result.NombreDelProcedimiento, &result.Entidad, &result.NitEntidad,
+		&result.DepartamentoEntidad, &result.CiudadEntidad, &result.OrdenEntidad,
+		&result.ReferenciaDelProceso, &result.DescripcionDelProcedimiento,
+		&result.Fase, &result.FechaDePublicacionDel, &result.FechaDeUltimaPublicaci,
+		&result.ModalidadDeContratacion, &result.PrecioBase, &result.Duracion,
+		&result.UnidadDeDuracion, &result.FechaDeRecepcionDe,
+		&result.EstadoDelProcedimiento, &result.Adjudicado, &result.NombreDelProveedor,
+		&result.ValorTotalAdjudicacion, &result.URLProceso,
+		&result.CodigoPrincipalDeCategoria, &result.TipoDeContrato,
+		&result.EstadoDeAperturaDelProceso, &result.EstadoResumen,
+		&result.ProveedoresInvitados, &result.ProveedoresQueManifestaron,
+		&result.RespuestasAlProcedimiento, &result.NumeroDeLotes,
+		&result.CreatedAt, &result.UpdatedAt, &result.DeletedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("upsert proposal: %w", err)
+	}
+	return result, nil
+}
+
 // scanProposals scans all rows from a pgx.Rows into a slice of PublicCallProposal.
 func scanProposals(rows pgx.Rows) ([]*domain.PublicCallProposal, error) {
 	var results []*domain.PublicCallProposal

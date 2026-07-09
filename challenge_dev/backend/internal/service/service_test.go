@@ -150,7 +150,7 @@ func TestProposalService_ListWithFilters(t *testing.T) {
 }
 
 func TestSavedProposalService_SaveProposal(t *testing.T) {
-	savedRepo := repository.NewMockSavedProposalRepository()
+	savedRepo := repository.NewMockSavedProposalRepository(nil)
 	savedService := NewSavedProposalService(savedRepo)
 
 	saved, err := savedService.SaveProposal(context.Background(), "1", "42")
@@ -160,8 +160,8 @@ func TestSavedProposalService_SaveProposal(t *testing.T) {
 	if saved == nil {
 		t.Fatal("expected saved proposal, got nil")
 	}
-	if saved.PublicCallID != 42 {
-		t.Errorf("expected PublicCallID 42, got %d", saved.PublicCallID)
+	if saved.PublicCallID != "42" {
+		t.Errorf("expected PublicCallID 42, got %s", saved.PublicCallID)
 	}
 	if saved.UserID != "1" {
 		t.Errorf("expected UserID '1', got %q", saved.UserID)
@@ -169,7 +169,7 @@ func TestSavedProposalService_SaveProposal(t *testing.T) {
 }
 
 func TestSavedProposalService_GetSavedProposals(t *testing.T) {
-	savedRepo := repository.NewMockSavedProposalRepository()
+	savedRepo := repository.NewMockSavedProposalRepository(nil)
 	savedService := NewSavedProposalService(savedRepo)
 
 	// No saved proposals initially
@@ -196,7 +196,7 @@ func TestSavedProposalService_GetSavedProposals(t *testing.T) {
 }
 
 func TestSavedProposalService_RemoveSavedProposal(t *testing.T) {
-	savedRepo := repository.NewMockSavedProposalRepository()
+	savedRepo := repository.NewMockSavedProposalRepository(nil)
 	savedService := NewSavedProposalService(savedRepo)
 
 	saved, _ := savedService.SaveProposal(context.Background(), "1", "42")

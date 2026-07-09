@@ -17,16 +17,15 @@ func main() {
 
 	userRepo := repository.NewMockUserRepository()
 	proposalRepo := repository.NewMockProposalRepository()
-	savedProposalRepo := repository.NewMockSavedProposalRepository()
+	savedProposalRepo := repository.NewMockSavedProposalRepository(proposalRepo)
 	sessionRepo := repository.NewMockSessionRepository()
 
 	authService := service.NewAuthService(userRepo, sessionRepo, cfg.SecretKey)
 	datosGovService := service.NewDatosGovService(cfg.IntegrationURL)
-	// Keep ProposalService for potential future DB-backed queries
-	_ = service.NewProposalService(proposalRepo)
+	proposalService := service.NewProposalService(proposalRepo)
 	savedProposalService := service.NewSavedProposalService(savedProposalRepo)
 
-	mux := router.NewRouter(authService, datosGovService, savedProposalService)
+	mux := router.NewRouter(authService, datosGovService, savedProposalService, proposalService)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Starting server on %s", addr)

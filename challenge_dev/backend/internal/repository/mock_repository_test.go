@@ -78,7 +78,7 @@ func TestMockProposalRepository_List(t *testing.T) {
 }
 
 func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
-	repo := NewMockSavedProposalRepository()
+	repo := NewMockSavedProposalRepository(nil)
 	saved, err := repo.Save(context.Background(), "1", "42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -87,8 +87,8 @@ func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
 	if saved.ID == "" {
 		t.Error("expected ID to be set after Save")
 	}
-	if saved.PublicCallID != 42 {
-		t.Errorf("expected PublicCallID 42, got %d", saved.PublicCallID)
+	if saved.PublicCallID != "42" {
+		t.Errorf("expected PublicCallID 42, got %s", saved.PublicCallID)
 	}
 	if saved.UserID != "1" {
 		t.Errorf("expected UserID \"1\", got %q", saved.UserID)
@@ -102,13 +102,13 @@ func TestMockSavedProposalRepository_SaveAndFind(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-	if results[0].PublicCallID != 42 {
-		t.Errorf("expected PublicCallID 42, got %d", results[0].PublicCallID)
+	if results[0].PublicCallID != "42" {
+		t.Errorf("expected PublicCallID 42, got %s", results[0].PublicCallID)
 	}
 }
 
 func TestMockSavedProposalRepository_Delete(t *testing.T) {
-	repo := NewMockSavedProposalRepository()
+	repo := NewMockSavedProposalRepository(nil)
 	saved, err := repo.Save(context.Background(), "2", "99")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -131,7 +131,7 @@ func TestMockSavedProposalRepository_Delete(t *testing.T) {
 }
 
 func TestMockSavedProposalRepository_Delete_NotFound(t *testing.T) {
-	repo := NewMockSavedProposalRepository()
+	repo := NewMockSavedProposalRepository(nil)
 	err := repo.Delete(context.Background(), "nonexistent", "999")
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)

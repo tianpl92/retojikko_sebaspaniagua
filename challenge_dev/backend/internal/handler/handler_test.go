@@ -13,11 +13,13 @@ import (
 
 func setupTestServer() *httptest.Server {
 	userRepo := repository.NewMockUserRepository()
-	savedRepo := repository.NewMockSavedProposalRepository()
+	proposalRepo := repository.NewMockProposalRepository()
+	savedRepo := repository.NewMockSavedProposalRepository(proposalRepo)
 
 	sessionRepo := repository.NewMockSessionRepository()
 	authService := service.NewAuthService(userRepo, sessionRepo, "test-secret")
 	datosGovService := service.NewDatosGovService("https://datos.gov.co/resource/p6dx-8zbt.json")
+	proposalService := service.NewProposalService(proposalRepo)
 	savedProposalService := service.NewSavedProposalService(savedRepo)
 
 	mux := http.NewServeMux()
@@ -36,6 +38,9 @@ func setupTestServer() *httptest.Server {
 	savedHandler := NewSavedProposalHandler(savedProposalService)
 	mux.Handle("/saved_proposals", AuthMiddleware(authService, savedHandler))
 	mux.Handle("/saved-proposals", AuthMiddleware(authService, savedHandler))
+
+	proposalSaveHandler := NewProposalSaveHandler(proposalService)
+	mux.Handle("/proposal-save", AuthMiddleware(authService, proposalSaveHandler))
 
 	return httptest.NewServer(mux)
 }
@@ -509,5 +514,197 @@ func TestUserModifyEndpoint_RejectsEmail(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestProposalSaveEndpoint_RequiresToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/proposal-save", "application/json",
+		strings.NewReader(`{"id":"42","nombre_del_procedimiento":"Test"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestProposalSaveEndpoint_Create(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	body := `{
+		"id":"42",
+		"nombre_del_procedimiento":"Test Proposal",
+		"entidad":"Test Entity",
+		"nit_entidad":"123456789",
+		"fase":"Open",
+		"modalidad_de_contratacion":"Public",
+		"precio_base":"1000000.50",
+		"duracion":"90",
+		"unidad_de_duracion":"Días",
+		"urlproceso":"https://example.com/proc/42",
+		"numero_de_lotes":"3"
+	}`
+	req, err := http.NewRequest("POST", server.URL+"/proposal-save", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+
+	if result["id"] == nil {
+		t.Error("expected an id in response")
+	}
+}
+
+func TestProposalSaveEndpoint_Upsert(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	// Create proposal
+	body1 := `{"id":"42","nombre_del_procedimiento":"Initial Name","entidad":"Entity A"}`
+	req1, _ := http.NewRequest("POST", server.URL+"/proposal-save", strings.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+token)
+	resp1, _ := http.DefaultClient.Do(req1)
+	resp1.Body.Close()
+	if resp1.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 on first save, got %d", resp1.StatusCode)
+	}
+
+	// Update same proposal with different name
+	body2 := `{"id":"42","nombre_del_procedimiento":"Updated Name","entidad":"Entity B"}`
+	req2, _ := http.NewRequest("POST", server.URL+"/proposal-save", strings.NewReader(body2))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
+	resp2, err := http.DefaultClient.Do(req2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusCreated {
+		t.Errorf("expected 201 on upsert, got %d", resp2.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp2.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+}
+
+func TestProposalSaveEndpoint_MissingID(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	body := `{"nombre_del_procedimiento":"No ID"}`
+	req, _ := http.NewRequest("POST", server.URL+"/proposal-save", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestSavedProposalsEndpoint_ReturnsFullProposalData(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	// First save a full proposal via proposal-save
+	saveBody := `{
+		"id":"99",
+		"nombre_del_procedimiento":"Full Proposal Test",
+		"entidad":"Test Entity",
+		"fase":"Open"
+	}`
+	req, _ := http.NewRequest("POST", server.URL+"/proposal-save", strings.NewReader(saveBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 on proposal-save, got %d", resp.StatusCode)
+	}
+
+	// Then save the association
+	saveAssocBody := `{"public_call_id":"99"}`
+	req2, _ := http.NewRequest("POST", server.URL+"/saved-proposals", strings.NewReader(saveAssocBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
+	resp2, _ := http.DefaultClient.Do(req2)
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 on saved-proposals, got %d", resp2.StatusCode)
+	}
+
+	// Now list saved proposals — should have full proposal data
+	req3, _ := http.NewRequest("GET", server.URL+"/saved_proposals", nil)
+	req3.Header.Set("Authorization", "Bearer "+token)
+	resp3, err := http.DefaultClient.Do(req3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp3.Body.Close()
+
+	if resp3.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp3.StatusCode)
+	}
+
+	var results []map[string]interface{}
+	if err := json.NewDecoder(resp3.Body).Decode(&results); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	// The response should include proposal fields
+	if results[0]["nombre_del_procedimiento"] != "Full Proposal Test" {
+		t.Errorf("expected nombre_del_procedimiento 'Full Proposal Test', got %v", results[0]["nombre_del_procedimiento"])
+	}
+	if results[0]["entidad"] != "Test Entity" {
+		t.Errorf("expected entidad 'Test Entity', got %v", results[0]["entidad"])
+	}
+	if results[0]["fase"] != "Open" {
+		t.Errorf("expected fase 'Open', got %v", results[0]["fase"])
+	}
+	if results[0]["id_del_proceso"] == nil {
+		t.Error("expected id_del_proceso in response")
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 // PublicCallProposal maps to the public_calls_proposals table.
 type PublicCallProposal struct {
-	ID                          int             `json:"id"`
+	ID                          string          `json:"id"`
 	NombreDelProcedimiento      sql.NullString  `json:"nombre_del_procedimiento"`
 	Entidad                     sql.NullString  `json:"entidad"`
 	NitEntidad                  sql.NullString  `json:"nit_entidad"`

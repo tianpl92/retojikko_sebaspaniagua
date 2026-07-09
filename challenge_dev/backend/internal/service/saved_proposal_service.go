@@ -26,6 +26,11 @@ func (s *SavedProposalService) GetSavedProposals(ctx context.Context, userID str
 	return s.savedRepo.FindByUserID(ctx, userID)
 }
 
+// GetSavedProposalsWithProposals returns all saved proposals with full proposal data for a user.
+func (s *SavedProposalService) GetSavedProposalsWithProposals(ctx context.Context, userID string) ([]*domain.SavedProposalWithProposal, error) {
+	return s.savedRepo.FindByUserIDWithProposals(ctx, userID)
+}
+
 // RemoveSavedProposal removes a saved proposal for a user.
 func (s *SavedProposalService) RemoveSavedProposal(ctx context.Context, userID, publicCallID string) error {
 	return s.savedRepo.Delete(ctx, userID, publicCallID)

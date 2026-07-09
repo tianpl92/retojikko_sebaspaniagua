@@ -1,6 +1,6 @@
 # Public Calls Portal — API Contract
 
-> **Version:** 1.0.0
+> **Version:** 1.1.0
 > **Base URL:** `http://localhost:8080`
 > **Auth:** JWT Bearer Token (except where noted)
 > **Content-Type:** `application/json`
@@ -17,8 +17,9 @@
 | 4 | `POST` | `/user-info` | ✅ | Get current user profile |
 | 5 | `POST` | `/user-modify` | ✅ | Update current user profile fields |
 | 6 | `GET` | `/public-proposals` | ✅ | List public proposals from datos.gov.co |
-| 7 | `GET` | `/saved_proposals` | ✅ | List user's saved proposals |
+| 7 | `GET` | `/saved_proposals` | ✅ | List user's saved proposals (with full data) |
 | 8 | `POST` | `/saved-proposals` | ✅ | Save a proposal for current user |
+| 9 | `POST` | `/proposal-save` | ✅ | Save (upsert) a full proposal locally |
 
 ---
 
@@ -129,7 +130,7 @@ Authenticate with email and password. Returns a JWT token valid for **1 hour**.
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDU2Nzg5MCIsImVtYWlsIjoic2ViYXN0aWFuQGV4YW1wbGUuY29tIiwiZXhwIjoxNzUzNDU2MDAwLCJpYXQiOjE3NTM0NTI0MDAsImlzcyI6InB1YmxpYy1jYWxscy1wb3J0YWwifQ.abc123...",
+  "token": "eyJhbG...c123...",
   "user": {
     "id": "1234567890",
     "first_name": "Sebastián",
@@ -158,7 +159,7 @@ Authenticate with email and password. Returns a JWT token valid for **1 hour**.
 
 **Protocol:** `POST /user-info`
 
-**Auth:** `Authorization: Bearer <JWT-t...urns the authenticated user's profile information. Password is never included in the response.
+**Auth:** `Authorization: Bearer <jwt-token>` — returns the authenticated user's profile information. Password is never included in the response.
 
 ### Input
 
@@ -198,7 +199,9 @@ No body parameters required.
 
 **Protocol:** `POST /user-modify`
 
-**Auth:** `Authorization: Bearer <JWT-t...Input Parameters (all optional)
+**Auth:** `Authorization: Bearer <jwt-token>` — updates the authenticated user's profile. Only the fields provided are updated.
+
+### Input Parameters (all optional)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -246,7 +249,7 @@ No body parameters required.
 
 **Protocol:** `GET /public-proposals`
 
-**Auth:** `Authorization: Bearer <JWT-token>`
+**Auth:** `Authorization: Bearer <jwt-token>`
 
 Fetches public calls for proposals **live from datos.gov.co** (SECOP II SODA API). Does not cache — each request calls the external API.
 
@@ -316,11 +319,13 @@ Returns a JSON array of objects. Each object uses the **original column names fr
 
 ---
 
-## 7. List Saved Proposals
+## 7. List Saved Proposals (with full proposal data)
 
 **Protocol:** `GET /saved_proposals`
 
-**Auth:** `Authorization: Bearer <JWT-t...urns the authenticated user's saved proposals. Returns an empty array `[]` if the user has no saved proposals.
+**Auth:** `Authorization: Bearer <jwt-token>`
+
+Returns the authenticated user's saved proposals **with full proposal data** (merged from the local proposals store). Returns an empty array `[]` if the user has no saved proposals.
 
 ### Input
 
@@ -332,16 +337,42 @@ No query or body parameters.
 
 ### Response - 200 OK
 
+Returns an array of saved proposals with the **full proposal data shape**. Each item includes the `user_id` and all proposal fields from `public_calls_proposals`, with the proposal ID serialised as `id_del_proceso`. Association metadata (`id`, `public_call_id`, `association_date`, `created_at`, `updated_at`, `deleted_at`) is not included — use the proposal data directly. Returns an empty array `[]` if the user has no saved proposals.
+
 ```json
-[
+[ 
   {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "public_call_id": "CO1.REQ.2577563",
     "user_id": "1234567890",
-    "association_date": "2026-07-06T14:40:00.000000-05:00",
-    "created_at": "2026-07-06T14:40:00.000000-05:00",
-    "updated_at": "2026-07-06T14:40:00.000000-05:00",
-    "deleted_at": null
+    "entidad": "DEPARTAMENTO ADMINISTRATIVO NACIONAL DE ESTADISTICA (DANE)",
+    "nit_entidad": "899999027",
+    "departamento_entidad": "Distrito Capital de Bogotá",
+    "ciudad_entidad": "Bogotá",
+    "ordenentidad": "Nacional",
+    "id_del_proceso": "CO1.REQ.2577563",
+    "referencia_del_proceso": "EDP-545-2022",
+    "nombre_del_procedimiento": "Convocatoria DSNFT-0001-FEEC-2024",
+    "descripci_n_del_procedimiento": "Aunar esfuerzos entre las partes para ejecutar el proyecto...",
+    "fase": "Presentación de oferta",
+    "fecha_de_publicacion_del": "2024-02-19T00:00:00.000",
+    "fecha_de_ultima_publicaci": "2024-03-12T00:00:00.000",
+    "modalidad_de_contratacion": "Licitación pública",
+    "precio_base": "500000000.00",
+    "duracion": "90",
+    "unidad_de_duracion": "Días",
+    "fecha_de_recepcion_de": "2024-04-15T17:00:00.000",
+    "estado_del_procedimiento": "Publicado",
+    "adjudicado": "No",
+    "nombre_del_proveedor": null,
+    "valor_total_adjudicacion": null,
+    "urlproceso": "https://community.secop.gov.co/...",
+    "codigo_principal_de_categoria": "72101500",
+    "tipo_de_contrato": "Servicios",
+    "estado_de_apertura_del_proceso": "Abierto",
+    "estado_resumen": "Recepcion de ofertas",
+    "proveedores_invitados": "0",
+    "proveedores_que_manifestaron": "0",
+    "respuestas_al_procedimiento": "0",
+    "numero_de_lotes": "1"
   }
 ]
 ```
@@ -360,11 +391,13 @@ No query or body parameters.
 
 ---
 
-## 8. Save a Proposal
+## 8. Save a Proposal (associate)
 
 **Protocol:** `POST /saved-proposals`
 
-**Auth:** `Authorization: Bearer <JWT-t...Save a public proposal for the authenticated user. This endpoint is **idempotent** - if the proposal is already saved, it still returns a success response without creating duplicate records.
+**Auth:** `Authorization: Bearer <jwt-token>`
+
+Saves (associates) a public proposal for the authenticated user. This endpoint is **idempotent** — if the proposal is already saved, it still returns a success response without creating duplicate records.
 
 ### Input
 
@@ -405,6 +438,147 @@ No query or body parameters.
 
 ---
 
+## 9. Save a Proposal (full data)
+
+**Protocol:** `POST /proposal-save`
+
+**Auth:** `Authorization: Bearer <jwt-token>`
+
+Saves (upserts) a full public call proposal into the local repository. If a proposal with the same `id` already exists, it updates the existing record; otherwise it creates a new one.
+
+Use this endpoint to preserve proposal details locally so they can be referenced later via the saved-proposals listing (which merges full proposal data).
+
+### Input
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer <jwt-token>` |
+| `Content-Type` | `application/json` |
+
+### Input Parameters
+
+All fields matching the datos.gov.co response shape are accepted. Only `id` is required.
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `id` | string | ✅ | Unique proposal identifier |
+| `nombre_del_procedimiento` | string | ❌ | Procedure name |
+| `entidad` | string | ❌ | Entity name |
+| `nit_entidad` | string | ❌ | Entity NIT |
+| `departamento_entidad` | string | ❌ | Entity department |
+| `ciudad_entidad` | string | ❌ | Entity city |
+| `ordenentidad` | string | ❌ | Entity order |
+| `referencia_del_proceso` | string | ❌ | Process reference |
+| `descripci_n_del_procedimiento` | string | ❌ | Procedure description |
+| `fase` | string | ❌ | Phase |
+| `fecha_de_publicacion_del` | string | ❌ | Publication date |
+| `fecha_de_ultima_publicaci` | string | ❌ | Last publication date |
+| `modalidad_de_contratacion` | string | ❌ | Contracting modality |
+| `precio_base` | number | ❌ | Base price |
+| `duracion` | string | ❌ | Duration |
+| `unidad_de_duracion` | string | ❌ | Duration unit |
+| `fecha_de_recepcion_de` | string | ❌ | Reception date |
+| `estado_del_procedimiento` | string | ❌ | Procedure status |
+| `adjudicado` | string | ❌ | Awarded indicator |
+| `nombre_del_proveedor` | string | ❌ | Provider name |
+| `valor_total_adjudicacion` | number | ❌ | Total award value |
+| `urlproceso` | string | ❌ | Process URL |
+| `codigo_principal_de_categoria` | string | ❌ | Main category code |
+| `tipo_de_contrato` | string | ❌ | Contract type |
+| `estado_de_apertura_del_proceso` | string | ❌ | Opening status |
+| `estado_resumen` | string | ❌ | Summary status |
+| `proveedores_invitados` | string | ❌ | Invited providers count |
+| `proveedores_que_manifestaron` | string | ❌ | Providers who expressed interest |
+| `respuestas_al_procedimiento` | string | ❌ | Response count |
+| `numero_de_lotes` | integer | ❌ | Number of lots |
+
+### Example Request
+
+```json
+  {
+    "entidad": "DEPARTAMENTO ADMINISTRATIVO NACIONAL DE ESTADISTICA (DANE)",
+    "nit_entidad": "899999027",
+    "departamento_entidad": "Distrito Capital de Bogotá",
+    "ciudad_entidad": "Bogotá",
+    "ordenentidad": "Nacional",
+    "id": "CO1.REQ.2577563",
+    "referencia_del_proceso": "EDP-545-2022",
+    "nombre_del_procedimiento": "Convocatoria DSNFT-0001-FEEC-2024",
+    "descripci_n_del_procedimiento": "Aunar esfuerzos entre las partes para ejecutar el proyecto...",
+    "fase": "Presentación de oferta",
+    "fecha_de_publicacion_del": "2024-02-19T00:00:00.000",
+    "fecha_de_ultima_publicaci": "2024-03-12T00:00:00.000",
+    "modalidad_de_contratacion": "Licitación pública",
+    "precio_base": "500000000.00",
+    "duracion": "90",
+    "unidad_de_duracion": "Días",
+    "fecha_de_recepcion_de": "2024-04-15T17:00:00.000",
+    "estado_del_procedimiento": "Publicado",
+    "adjudicado": "No",
+    "nombre_del_proveedor": null,
+    "valor_total_adjudicacion": null,
+    "urlproceso": "https://community.secop.gov.co/...",
+    "codigo_principal_de_categoria": "72101500",
+    "tipo_de_contrato": "Servicios",
+    "estado_de_apertura_del_proceso": "Abierto",
+    "estado_resumen": "Recepcion de ofertas",
+    "proveedores_invitados": "0",
+    "proveedores_que_manifestaron": "0",
+    "respuestas_al_procedimiento": "0",
+    "numero_de_lotes": "1"
+  }
+```
+
+### Response — `201 Created`
+
+Returns the saved (or updated) proposal object.
+
+```json
+{
+    "id": "CO1.REQ.2577563",
+    "entidad": "DEPARTAMENTO ADMINISTRATIVO NACIONAL DE ESTADISTICA (DANE)",
+    "nit_entidad": "899999027",
+    "departamento_entidad": "Distrito Capital de Bogotá",
+    "ciudad_entidad": "Bogotá",
+    "ordenentidad": "Nacional",
+    "referencia_del_proceso": "EDP-545-2022",
+    "nombre_del_procedimiento": "Convocatoria DSNFT-0001-FEEC-2024",
+    "descripci_n_del_procedimiento": "Aunar esfuerzos entre las partes para ejecutar el proyecto...",
+    "fase": "Presentación de oferta",
+    "fecha_de_publicacion_del": "2024-02-19T00:00:00.000",
+    "fecha_de_ultima_publicaci": "2024-03-12T00:00:00.000",
+    "modalidad_de_contratacion": "Licitación pública",
+    "precio_base": "500000000.00",
+    "duracion": "90",
+    "unidad_de_duracion": "Días",
+    "fecha_de_recepcion_de": "2024-04-15T17:00:00.000",
+    "estado_del_procedimiento": "Publicado",
+    "adjudicado": "No",
+    "nombre_del_proveedor": null,
+    "valor_total_adjudicacion": null,
+    "urlproceso": "https://community.secop.gov.co/...",
+    "codigo_principal_de_categoria": "72101500",
+    "tipo_de_contrato": "Servicios",
+    "estado_de_apertura_del_proceso": "Abierto",
+    "estado_resumen": "Recepcion de ofertas",
+    "proveedores_invitados": "0",
+    "proveedores_que_manifestaron": "0",
+    "respuestas_al_procedimiento": "0",
+    "numero_de_lotes": "1"
+}
+```
+
+### Error Responses
+
+| Status | Condition | Body |
+|--------|-----------|------|
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+| 400 Bad Request | Invalid JSON body | `{"error":"invalid request body"}` |
+| 400 Bad Request | Missing `id` field | `{"error":"id is required"}` |
+| 500 Internal Server Error | Storage failure | `{"error":"..."}` |
+
+---
+
 ## Authentication Summary
 
 ```
@@ -417,6 +591,7 @@ POST /user-modify        → Requires Bearer token
 GET  /public-proposals   → Requires Bearer token
 GET  /saved_proposals    → Requires Bearer token
 POST /saved-proposals    → Requires Bearer token
+POST /proposal-save      → Requires Bearer token
 ```
 
 ### How to use the token
@@ -431,7 +606,7 @@ curl -X POST http://localhost:8080/login \
 
 # 2. Call a protected endpoint
 curl -X GET http://localhost:8080/public-proposals?limit=5 \
-  -H "Authorization: Bearer <jwt-token>"
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Token expiry

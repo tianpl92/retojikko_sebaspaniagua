@@ -10,5 +10,6 @@ import (
 type SavedProposalRepository interface {
 	Save(ctx context.Context, userID, publicCallID string) (*domain.SavedProposal, error)
 	FindByUserID(ctx context.Context, userID string) ([]*domain.SavedProposal, error)
+	FindByUserIDWithProposals(ctx context.Context, userID string) ([]*domain.SavedProposalWithProposal, error)
 	Delete(ctx context.Context, userID, publicCallID string) error
 }

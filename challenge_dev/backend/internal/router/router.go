@@ -12,6 +12,7 @@ func NewRouter(
 	authService *service.AuthService,
 	datosGovService *service.DatosGovService,
 	savedProposalService *service.SavedProposalService,
+	proposalService *service.ProposalService,
 ) http.Handler {
 	mux := http.NewServeMux()
 
@@ -38,6 +39,10 @@ func NewRouter(
 	savedProposalHandler := handler.NewSavedProposalHandler(savedProposalService)
 	mux.Handle("/saved_proposals", handler.AuthMiddleware(authService, savedProposalHandler))
 	mux.Handle("/saved-proposals", handler.AuthMiddleware(authService, savedProposalHandler))
+
+	// Proposal save - auth required, upserts a full proposal
+	proposalSaveHandler := handler.NewProposalSaveHandler(proposalService)
+	mux.Handle("/proposal-save", handler.AuthMiddleware(authService, proposalSaveHandler))
 
 	return corsMiddleware(mux)
 }
