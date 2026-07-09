@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — Portal de Convocatorias Públicas</title>
   <link rel="stylesheet" href="../sheets/styles.css">
+  <script>
+    const BACKEND_URL = "http://localhost:8888";
+    const ENDPOINTS = {
+      LOGIN:       "/login",
+      USER_CREATE: "/user-create",
+      HEALTH:      "/health",
+      USER_INFO:   "/user-info",
+      USER_MODIFY: "/user-modify",
+      PROPOSALS:   "/public-proposals",
+      SAVED_LIST:  "/saved_proposals",
+      SAVED_SAVE:  "/saved-proposals",
+    };
+  </script>
+  <script src="../scripts/dashboard.js"></script>
   <style>
     /* =============================================
        Dashboard-specific overrides
@@ -313,6 +327,97 @@
       background: #3d3858;
     }
 
+    /* --- Loading Overlay --- */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.7);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e0e0e8;
+      border-top-color: #4A4466;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay .loading-text {
+      margin-top: 14px;
+      font-size: 14px;
+      color: #4A4466;
+      font-weight: 500;
+    }
+
+    /* --- Floating Save Button --- */
+    .btn-save-float {
+      position: fixed;
+      right: 28px;
+      bottom: 32px;
+      z-index: 180;
+      padding: 14px 28px;
+      background: #4A4466;
+      color: #ffffff;
+      border: none;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(74, 68, 102, 0.3);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-save-float:hover:not(:disabled) {
+      background: #3d3858;
+      box-shadow: 0 6px 24px rgba(74, 68, 102, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-save-float:disabled {
+      background: #c8c8d4;
+      color: #9a9aaa;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-save-float .icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .btn-nav-saved {
+      bottom: 96px;
+      background: #6EADBC;
+      padding: 12px 24px;
+      font-size: 14px;
+    }
+
+    .btn-nav-saved:hover {
+      background: #5a9aa8 !important;
+      transform: translateY(-1px);
+    }
+
     /* --- Floating Detail Modal --- */
     .modal-overlay {
       display: none;
@@ -441,13 +546,19 @@
   <!-- ===== Status Bar ===== -->
   <div class="status-bar">
     <div class="app-title">Portal de <span>Convocatorias</span></div>
-    <div class="welcome">Bienvenido: <strong id="userDisplay">Usertest jikko</strong></div>
+    <div class="welcome">Bienvenido: <strong id="userDisplay">Cargando...</strong></div>
   </div>
 
   <!-- ===== Main Content ===== -->
   <div class="dashboard-content">
     <h2>Convocatorias Públicas</h2>
     <p class="subtitle">Explora y selecciona las convocatorias de tu interés</p>
+
+    <!-- ===== Loading Overlay ===== -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Cargando convocatorias...</div>
+  </div>
 
     <!-- ===== Filter Bar ===== -->
     <div class="filter-bar">
@@ -488,27 +599,32 @@
         </thead>
         <tbody id="proposalsBody">
           <tr>
-            <td><input type="checkbox"></td>
-            <td>Convocatoria DSNFT-0001-FEEC-2024</td>
-            <td>DEPARTAMENTO ADMINISTRATIVO NACIONAL DE ESTADISTICA (DANE)</td>
-            <td>CO1.REQ.2577563</td>
-            <td><span class="badge badge-published">Publicado</span></td>
-            <td><button class="btn-details" onclick="showDetail(0)">Detalles...</button></td>
+            <td colspan="6" style="text-align:center;padding:40px;color:#7a7a8e;">Cargando convocatorias...</td>
           </tr>
         </tbody>
       </table>
 
       <!-- ===== Pagination ===== -->
       <div class="pagination-bar">
-        <div class="info">Mostrando 1–1 de 1 resultado</div>
+        <div class="info" id="pageInfo">Cargando...</div>
         <div class="pagination-controls">
-          <button disabled>&laquo; Anterior</button>
-          <button class="active">1</button>
-          <button disabled>Siguiente &raquo;</button>
+          <button id="btnPrev" disabled>&laquo; Anterior</button>
+          <span id="pageNum" style="padding:6px 12px;font-size:13px;color:#4A4466;font-weight:600;">Página 1</span>
+          <button id="btnNext" disabled>Siguiente &raquo;</button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- ===== Floating Save Button ===== -->
+  <button class="btn-save-float" id="btnGuardar" disabled>
+    <span class="icon">&#128190;</span> Guardar...
+  </button>
+
+  <!-- ===== Floating Nav Button ===== -->
+  <button class="btn-save-float btn-nav-saved" id="btnVerGuardadas" onclick="window.location.href='saved-proposals.html'">
+    <span class="icon">&#128196;</span> Ver Convocatorias Guardadas
+  </button>
 
   <!-- ===== Floating Detail Modal ===== -->
   <div class="modal-overlay" id="detailModal">
@@ -521,108 +637,5 @@
     </div>
   </div>
 
-  <script>
-    // =============================================
-    // Example data — one row skeleton
-    // =============================================
-    const PROPOSALS = [
-      {
-        nombre_del_procedimiento: "Convocatoria DSNFT-0001-FEEC-2024",
-        entidad: "DEPARTAMENTO ADMINISTRATIVO NACIONAL DE ESTADISTICA (DANE)",
-        id_del_proceso: "CO1.REQ.2577563",
-        estado_del_procedimiento: "Publicado",
-        nit_entidad: "899999027",
-        departamento_entidad: "Distrito Capital de Bogotá",
-        ciudad_entidad: "Bogotá",
-        ordenentidad: "Nacional",
-        referencia_del_proceso: "EDP-545-2022",
-        descripci_n_del_procedimiento: "Aunar esfuerzos entre las partes para ejecutar el proyecto de fortalecimiento institucional mediante la adquisición de bienes y servicios tecnológicos.",
-        fase: "Presentación de oferta",
-        fecha_de_publicacion_del: "2024-02-19T00:00:00.000",
-        fecha_de_ultima_publicaci: "2024-03-12T00:00:00.000",
-        modalidad_de_contratacion: "Licitación pública",
-        precio_base: 500000000.00,
-        urlproceso: "https://community.secop.gov.co/Public/Public/CallForProposals/Details/2577563"
-      }
-    ];
-
-    // =============================================
-    // Detail Modal
-    // =============================================
-    const LABEL_MAP = {
-      entidad: "Entidad",
-      nit_entidad: "NIT Entidad",
-      departamento_entidad: "Departamento",
-      ciudad_entidad: "Ciudad",
-      ordenentidad: "Orden",
-      id_del_proceso: "ID del Proceso",
-      referencia_del_proceso: "Referencia",
-      nombre_del_procedimiento: "Nombre del Procedimiento",
-      descripci_n_del_procedimiento: "Descripción",
-      fase: "Fase",
-      fecha_de_publicacion_del: "Fecha de Publicación",
-      fecha_de_ultima_publicaci: "Última Publicación",
-      modalidad_de_contratacion: "Modalidad",
-      precio_base: "Precio Base",
-      estado_del_procedimiento: "Estado",
-      urlproceso: "URL del Proceso"
-    };
-
-    function showDetail(index) {
-      const p = PROPOSALS[index];
-      if (!p) return;
-
-      document.getElementById("modalTitle").textContent = p.nombre_del_procedimiento;
-
-      const grid = document.getElementById("detailGrid");
-      grid.innerHTML = "";
-
-      const fields = [
-        "entidad", "nit_entidad", "departamento_entidad", "ciudad_entidad",
-        "ordenentidad", "id_del_proceso", "referencia_del_proceso",
-        "nombre_del_procedimiento", "descripci_n_del_procedimiento",
-        "fase", "fecha_de_publicacion_del", "fecha_de_ultima_publicaci",
-        "modalidad_de_contratacion", "precio_base", "estado_del_procedimiento",
-        "urlproceso"
-      ];
-
-      for (const field of fields) {
-        const label = LABEL_MAP[field] || field;
-        let value = p[field];
-
-        if (field === "precio_base" && value != null) {
-          value = "$" + Number(value).toLocaleString("es-CO", { minimumFractionDigits: 2 });
-        }
-
-        if (field === "urlproceso" && value) {
-          value = `<a href="${value}" target="_blank" rel="noopener">Ver en SECOP II &rarr;</a>`;
-        }
-
-        if (value == null) value = "—";
-
-        const div = document.createElement("div");
-        div.className = field === "descripci_n_del_procedimiento" || field === "nombre_del_procedimiento"
-          ? "detail-item full-width" : "detail-item";
-        div.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
-        grid.appendChild(div);
-      }
-
-      document.getElementById("detailModal").classList.add("active");
-    }
-
-    function closeDetail() {
-      document.getElementById("detailModal").classList.remove("active");
-    }
-
-    // Close modal on overlay click
-    document.getElementById("detailModal").addEventListener("click", function(e) {
-      if (e.target === this) closeDetail();
-    });
-
-    // Close modal on Escape key
-    document.addEventListener("keydown", function(e) {
-      if (e.key === "Escape") closeDetail();
-    });
-  </script>
 </body>
 </html>
