@@ -47,4 +47,4 @@ To understand and make time to keep learning about the skills Hermes handles and
 
 ## 7. Repository github 
 
-https://github.com/tianpl92/retojikko_sebaspaniagua/tree/main
+https://github.com/tianpl92/retojikko_sebaspaniagua/tree/main/challenge_dev
