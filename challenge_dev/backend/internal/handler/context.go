@@ -11,10 +11,16 @@ import (
 type contextKey string
 
 const userIDKey contextKey = "userID"
+const tokenKey contextKey = "token"
 
 // contextWithUserID stores the userID in context.
 func contextWithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, userIDKey, userID)
+}
+
+// contextWithToken stores the raw JWT token string in context.
+func contextWithToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, tokenKey, token)
 }
 
 // AuthMiddleware checks token from Authorization header and injects userID into context.
@@ -39,9 +45,10 @@ func AuthMiddleware(authService *service.AuthService, next http.Handler) http.Ha
 			return
 		}
 
-		// Store userID in context
+		// Store userID and raw token in context
 		ctx := r.Context()
 		ctx = contextWithUserID(ctx, userID)
+		ctx = contextWithToken(ctx, token)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

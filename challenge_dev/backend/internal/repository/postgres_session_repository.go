@@ -67,3 +67,13 @@ func (r *PostgresSessionRepository) DeleteExpired(ctx context.Context) error {
 	}
 	return nil
 }
+
+// DeleteByToken removes a specific session by its token string.
+func (r *PostgresSessionRepository) DeleteByToken(ctx context.Context, token string) error {
+	query := `DELETE FROM user_sessions WHERE token = $1`
+	_, err := r.pool.Exec(ctx, query, token)
+	if err != nil {
+		return fmt.Errorf("delete session by token: %w", err)
+	}
+	return nil
+}

@@ -211,3 +211,48 @@ func TestSavedProposalService_RemoveSavedProposal(t *testing.T) {
 		t.Errorf("expected 0 after delete, got %d", len(savedList))
 	}
 }
+
+func TestAuthService_Logout_Success(t *testing.T) {
+	userRepo := repository.NewMockUserRepository()
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
+
+	// Login first to create a session
+	token, _, err := authService.Login(context.Background(), "test@example.com", "password123")
+	if err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
+
+	// Validate the token works
+	userID, err := authService.ValidateToken(token)
+	if err != nil {
+		t.Fatalf("validate token before logout failed: %v", err)
+	}
+	if userID == "" {
+		t.Fatal("expected non-empty userID")
+	}
+
+	// Logout
+	err = authService.Logout(context.Background(), token)
+	if err != nil {
+		t.Fatalf("logout failed: %v", err)
+	}
+
+	// Validate the token no longer works
+	_, err = authService.ValidateToken(token)
+	if err == nil {
+		t.Error("expected error after logout, got nil")
+	}
+}
+
+func TestAuthService_Logout_AlreadyExpired(t *testing.T) {
+	userRepo := repository.NewMockUserRepository()
+	sessionRepo := repository.NewMockSessionRepository()
+	authService := NewAuthService(userRepo, sessionRepo, "test-secret")
+
+	// Logout with a non-existent token should not error (best-effort)
+	err := authService.Logout(context.Background(), "non-existent-token")
+	if err != nil {
+		t.Errorf("expected no error for non-existent token, got %v", err)
+	}
+}

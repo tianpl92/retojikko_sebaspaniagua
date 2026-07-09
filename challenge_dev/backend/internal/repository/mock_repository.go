@@ -504,3 +504,10 @@ func (r *mockSessionRepository) DeleteExpired(_ context.Context) error {
 	}
 	return nil
 }
+
+func (r *mockSessionRepository) DeleteByToken(_ context.Context, token string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.sessions, token)
+	return nil
+}

@@ -1,6 +1,6 @@
 # Public Calls Portal — API Contract
 
-> **Version:** 1.1.0
+> **Version:** 1.2.0
 > **Base URL:** `http://localhost:8080`
 > **Auth:** JWT Bearer Token (except where noted)
 > **Content-Type:** `application/json`
@@ -20,6 +20,7 @@
 | 7 | `GET` | `/saved_proposals` | ✅ | List user's saved proposals (with full data) |
 | 8 | `POST` | `/saved-proposals` | ✅ | Save a proposal for current user |
 | 9 | `POST` | `/proposal-save` | ✅ | Save (upsert) a full proposal locally |
+| 10 | `POST` | `/logout` | ✅ | Invalidate current session (logout) |
 
 ---
 
@@ -579,6 +580,36 @@ Returns the saved (or updated) proposal object.
 
 ---
 
+## 10. Logout
+
+**Protocol:** `POST /logout`
+
+**Auth:** `Authorization: Bearer *** — invalidates the current JWT session. After logout, the same token cannot be used to access protected endpoints.
+
+### Input
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer <jwt-token>` |
+
+No body parameters required.
+
+### Response - 200 OK
+
+```json
+{
+  "message": "Sesion cerrada exitosamente"
+}
+```
+
+### Error Responses
+
+| Status | Condition | Body |
+|--------|-----------|------|
+| 401 Unauthorized | Missing/invalid/expired token | `{"error":"Credentials invalid"}` |
+
+---
+
 ## Authentication Summary
 
 ```
@@ -592,6 +623,7 @@ GET  /public-proposals   → Requires Bearer token
 GET  /saved_proposals    → Requires Bearer token
 POST /saved-proposals    → Requires Bearer token
 POST /proposal-save      → Requires Bearer token
+POST /logout             → Requires Bearer token
 ```
 
 ### How to use the token
