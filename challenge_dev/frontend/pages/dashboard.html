@@ -66,6 +66,22 @@
       font-weight: 600;
     }
 
+    .btn-logout {
+      background: none;
+      border: 1px solid #9FCBAD;
+      color: #9FCBAD;
+      padding: 3px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover {
+      background: #9FCBAD;
+      color: #4A4466;
+    }
+
     /* --- Main Content --- */
     .dashboard-content {
       max-width: 1360px;
@@ -546,7 +562,9 @@
   <!-- ===== Status Bar ===== -->
   <div class="status-bar">
     <div class="app-title">Portal de <span>Convocatorias</span></div>
-    <div class="welcome">Bienvenido: <strong id="userDisplay">Cargando...</strong></div>
+    <div class="welcome">Bienvenido: <strong id="userDisplay">Cargando...</strong>
+      <button id="btnLogout" class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
   </div>
 
   <!-- ===== Main Content ===== -->

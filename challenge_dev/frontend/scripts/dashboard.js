@@ -277,6 +277,29 @@ document.addEventListener("keydown", function (e) {
 });
 
 // =============================================
+// Logout
+// =============================================
+async function logout() {
+  const token = localStorage.getItem("jwt_token");
+  if (!token) {
+    window.location.href = "login.html";
+    return;
+  }
+  try {
+    await fetch(BACKEND_URL + "/logout", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+    });
+  } catch (err) {
+    // Proceed with local cleanup even if server request fails
+  }
+  localStorage.removeItem("jwt_token");
+  localStorage.removeItem("user_name");
+  localStorage.removeItem("user_last_name");
+  window.location.href = "login.html";
+}
+
+// =============================================
 // Save proposals
 // =============================================
 function updateGuardarButton() {

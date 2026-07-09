@@ -11,5 +11,6 @@ import (
 type SessionRepository interface {
 	Create(ctx context.Context, userID, token string, expiresAt time.Time) error
 	FindByToken(ctx context.Context, token string) (*domain.UserSession, error)
+	DeleteByToken(ctx context.Context, token string) error
 	DeleteExpired(ctx context.Context) error
 }

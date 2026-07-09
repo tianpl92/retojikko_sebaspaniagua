@@ -137,3 +137,8 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*domain.U
 func (s *AuthService) UpdateUser(ctx context.Context, user *domain.User) error {
 	return s.userRepo.Update(ctx, user)
 }
+
+// Logout invalidates a session by deleting the token from the session store.
+func (s *AuthService) Logout(ctx context.Context, token string) error {
+	return s.sessionRepo.DeleteByToken(ctx, token)
+}

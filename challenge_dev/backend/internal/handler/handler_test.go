@@ -42,6 +42,9 @@ func setupTestServer() *httptest.Server {
 	proposalSaveHandler := NewProposalSaveHandler(proposalService)
 	mux.Handle("/proposal-save", AuthMiddleware(authService, proposalSaveHandler))
 
+	logoutHandler := NewLogoutHandler(authService)
+	mux.Handle("/logout", AuthMiddleware(authService, logoutHandler))
+
 	return httptest.NewServer(mux)
 }
 
@@ -706,5 +709,78 @@ func TestSavedProposalsEndpoint_ReturnsFullProposalData(t *testing.T) {
 	}
 	if results[0]["id_del_proceso"] == nil {
 		t.Error("expected id_del_proceso in response")
+	}
+}
+
+func TestLogoutEndpoint_RequiresToken(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	resp, err := http.Post(server.URL+"/logout", "application/json", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestLogoutEndpoint_Success(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	req, _ := http.NewRequest("POST", server.URL+"/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+
+	if result["message"] != "Sesion cerrada exitosamente" {
+		t.Errorf("expected success message, got %v", result["message"])
+	}
+}
+
+func TestLogoutEndpoint_TokenInvalidAfterLogout(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	token := login(t, server.URL, "test@example.com", "password123")
+
+	// Logout
+	req, _ := http.NewRequest("POST", server.URL+"/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("logout expected 200, got %d", resp.StatusCode)
+	}
+
+	// Old token should now be invalid
+	req2, _ := http.NewRequest("GET", server.URL+"/user-info", nil)
+	req2.Header.Set("Authorization", "Bearer "+token)
+	resp2, err := http.DefaultClient.Do(req2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 after logout, got %d", resp2.StatusCode)
 	}
 }
