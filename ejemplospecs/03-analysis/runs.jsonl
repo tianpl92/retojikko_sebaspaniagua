@@ -1,0 +1,9 @@
+{"round": 1, "model": "gpt5.5", "spec": "a", "output": "ejemplospecs/outputs/r1_gpt5.5_a.sql", "notes": "", "ts": "2026-06-26T03:45:31+00:00"}
+{"round": 1, "model": "gpt5.5", "spec": "a", "output": "ejemplospecs/outputs/r2_gpt5.5_b.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "gpt5.5", "spec": "a", "output": "ejemplospecs/outputs/r3_gpt5.5_c.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "nemotron", "spec": "a", "output": "ejemplospecs/outputs/r1_nemotron_a.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "nemotron", "spec": "a", "output": "ejemplospecs/outputs/r2_nemotron_b.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "nemotron", "spec": "a", "output": "ejemplospecs/outputs/r3_nemotron_c.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "owlalpha", "spec": "a", "output": "ejemplospecs/outputs/r1_owlalpha_a.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "owlalpha", "spec": "a", "output": "ejemplospecs/outputs/r2_owlalpha_b.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}
+{"round": 1, "model": "owlalpha", "spec": "a", "output": "ejemplospecs/outputs/r3_owlalpha_c.sql", "notes": "", "ts": "2026-06-26T03:45:50+00:00"}

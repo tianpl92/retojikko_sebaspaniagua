@@ -1,0 +1,12 @@
+source .venv/bin/activate   # if not already active
+python ejemplospecs/scripts/log_run.py --round 1 --model gpt5.5 --spec a --output outputs/r1_gpt5.5_a.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model gpt5.5 --spec a --output outputs/r2_gpt5.5_b.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model gpt5.5 --spec a --output outputs/r3_gpt5.5_c.sql --no-wandb
+
+python ejemplospecs/scripts/log_run.py --round 1 --model nemotron --spec a --output outputs/r1_nemotron_a.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model nemotron --spec a --output outputs/r2_nemotron_b.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model nemotron --spec a --output outputs/r3_nemotron_c.sql --no-wandb
+
+python ejemplospecs/scripts/log_run.py --round 1 --model owlalpha --spec a --output outputs/r1_owlalpha_a.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model owlalpha --spec a --output outputs/r2_owlalpha_b.sql --no-wandb
+python ejemplospecs/scripts/log_run.py --round 1 --model owlalpha --spec a --output outputs/r3_owlalpha_c.sql --no-wandb

@@ -1,0 +1,15 @@
+// Public Calls Portal — App Config
+// Backend service URL
+const BACKEND_URL = "http://localhost:8888";
+
+// API Endpoints
+const ENDPOINTS = {
+  LOGIN:       "/login",
+  USER_CREATE: "/user-create",
+  HEALTH:      "/health",
+  USER_INFO:   "/user-info",
+  USER_MODIFY: "/user-modify",
+  PROPOSALS:   "/public-proposals",
+  SAVED_LIST:  "/saved_proposals",
+  SAVED_SAVE:  "/saved-proposals",
+};

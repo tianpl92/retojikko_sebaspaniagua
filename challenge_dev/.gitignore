@@ -1,0 +1,5 @@
+# Hermes Agent configuration folder
+.hermes/
+
+# Backend environment variables
+backend/.env

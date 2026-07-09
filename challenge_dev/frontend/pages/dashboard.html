@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Portal de Convocatorias Públicas</title>
+  <link rel="stylesheet" href="../sheets/styles.css">
+  <script>
+    const BACKEND_URL = "http://localhost:8888";
+    const ENDPOINTS = {
+      LOGIN:       "/login",
+      USER_CREATE: "/user-create",
+      HEALTH:      "/health",
+      USER_INFO:   "/user-info",
+      USER_MODIFY: "/user-modify",
+      PROPOSALS:   "/public-proposals",
+      SAVED_LIST:  "/saved_proposals",
+      SAVED_SAVE:  "/saved-proposals",
+    };
+  </script>
+  <script src="../scripts/dashboard.js"></script>
+  <style>
+    /* =============================================
+       Dashboard-specific overrides
+       ============================================= */
+
+    /* Remove the gradient background for dashboard — use solid */
+    html, body {
+      background: #f5f6fa;
+      height: auto;
+      min-height: 100vh;
+    }
+
+    /* --- Status Bar --- */
+    .status-bar {
+      background: #4A4466;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 32px;
+      box-shadow: 0 2px 8px rgba(74, 68, 102, 0.2);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .status-bar .app-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .status-bar .app-title span {
+      color: #9FCBAD;
+    }
+
+    .status-bar .welcome {
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+
+    .status-bar .welcome strong {
+      color: #F1F7D4;
+      font-weight: 600;
+    }
+
+    /* --- Main Content --- */
+    .dashboard-content {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px 32px 40px;
+    }
+
+    .dashboard-content h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #4A4466;
+      margin-bottom: 4px;
+    }
+
+    .dashboard-content .subtitle {
+      font-size: 14px;
+      color: #7a7a8e;
+      margin-bottom: 20px;
+    }
+
+    /* --- Data Table --- */
+    .table-wrapper {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(74, 68, 102, 0.08);
+      overflow: hidden;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table thead {
+      background: #4A4466;
+      color: #ffffff;
+    }
+
+    .data-table thead th {
+      padding: 12px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    .data-table thead th:first-child {
+      width: 40px;
+      text-align: center;
+    }
+
+    .data-table thead th:last-child {
+      width: 110px;
+      text-align: center;
+    }
+
+    .data-table tbody tr {
+      border-bottom: 1px solid #eef0f5;
+      transition: background 0.15s ease;
+    }
+
+    .data-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f8f9fe;
+    }
+
+    .data-table tbody td {
+      padding: 14px;
+      color: #2d2d3a;
+      line-height: 1.4;
+    }
+
+    .data-table tbody td:first-child {
+      text-align: center;
+      width: 40px;
+    }
+
+    .data-table tbody td:last-child {
+      text-align: center;
+      width: 110px;
+    }
+
+    /* Checkbox styling */
+    .data-table input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      accent-color: #6EADBC;
+      cursor: pointer;
+    }
+
+    /* Estado badge */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-published {
+      background: #dff0d8;
+      color: #3c763d;
+    }
+
+    .badge-draft {
+      background: #fcf8e3;
+      color: #8a6d3b;
+    }
+
+    .badge-closed {
+      background: #f2dede;
+      color: #a94442;
+    }
+
+    /* Detalles button */
+    .btn-details {
+      background: none;
+      border: 1.5px solid #6EADBC;
+      color: #6EADBC;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-details:hover {
+      background: #6EADBC;
+      color: #ffffff;
+    }
+
+    /* --- Pagination --- */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-top: 1px solid #eef0f5;
+      background: #fafbfe;
+      font-size: 13px;
+      color: #7a7a8e;
+    }
+
+    .pagination-bar .info {
+      font-size: 13px;
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .pagination-controls button {
+      background: #ffffff;
+      border: 1px solid #d4d4e0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #4A4466;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pagination-controls button:hover {
+      background: #6EADBC;
+      border-color: #6EADBC;
+      color: #ffffff;
+    }
+
+    .pagination-controls button.active {
+      background: #4A4466;
+      border-color: #4A4466;
+      color: #ffffff;
+    }
+
+    .pagination-controls button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    /* --- Filter Bar --- */
+    .filter-bar {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(74, 68, 102, 0.08);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .filter-bar .filter-group {
+      flex: 1 1 160px;
+      min-width: 140px;
+    }
+
+    .filter-bar .filter-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #7a7a8e;
+      margin-bottom: 4px;
+    }
+
+    .filter-bar .filter-group input {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1.5px solid #d4d4e0;
+      border-radius: 8px;
+      background: #fafafe;
+      color: #2d2d3a;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .filter-bar .filter-group input::placeholder {
+      color: #acacbc;
+    }
+
+    .filter-bar .filter-group input:focus {
+      border-color: #6EADBC;
+      box-shadow: 0 0 0 3px rgba(110, 173, 188, 0.2);
+      background: #ffffff;
+    }
+
+    .filter-bar .btn-filter {
+      flex: 0 0 auto;
+      padding: 9px 28px;
+      background: #4A4466;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .filter-bar .btn-filter:hover {
+      background: #3d3858;
+    }
+
+    /* --- Loading Overlay --- */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.7);
+      z-index: 150;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e0e0e8;
+      border-top-color: #4A4466;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay .loading-text {
+      margin-top: 14px;
+      font-size: 14px;
+      color: #4A4466;
+      font-weight: 500;
+    }
+
+    /* --- Floating Save Button --- */
+    .btn-save-float {
+      position: fixed;
+      right: 28px;
+      bottom: 32px;
+      z-index: 180;
+      padding: 14px 28px;
+      background: #4A4466;
+      color: #ffffff;
+      border: none;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(74, 68, 102, 0.3);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-save-float:hover:not(:disabled) {
+      background: #3d3858;
+      box-shadow: 0 6px 24px rgba(74, 68, 102, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-save-float:disabled {
+      background: #c8c8d4;
+      color: #9a9aaa;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-save-float .icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .btn-nav-saved {
+      bottom: 96px;
+      background: #6EADBC;
+      padding: 12px 24px;
+      font-size: 14px;
+    }
+
+    .btn-nav-saved:hover {
+      background: #5a9aa8 !important;
+      transform: translateY(-1px);
+    }
+
+    /* --- Floating Detail Modal --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 720px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 32px 36px;
+      position: relative;
+      animation: modal-in 0.2s ease;
+    }
+
+    @keyframes modal-in {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #acacbc;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.15s ease;
+    }
+
+    .modal-close:hover {
+      color: #4A4466;
+    }
+
+    .modal-content h3 {
+      font-size: 18px;
+      color: #4A4466;
+      margin-bottom: 20px;
+      padding-right: 30px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 24px;
+    }
+
+    .detail-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eef0f5;
+    }
+
+    .detail-item.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .detail-item .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #acacbc;
+      margin-bottom: 2px;
+    }
+
+    .detail-item .value {
+      font-size: 14px;
+      color: #2d2d3a;
+      word-break: break-word;
+    }
+
+    .detail-item .value a {
+      color: #6EADBC;
+      text-decoration: none;
+    }
+
+    .detail-item .value a:hover {
+      text-decoration: underline;
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .status-bar {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+      }
+      .dashboard-content {
+        padding: 16px;
+      }
+      .data-table {
+        font-size: 12px;
+      }
+      .data-table thead th,
+      .data-table tbody td {
+        padding: 8px 6px;
+      }
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Status Bar ===== -->
+  <div class="status-bar">
+    <div class="app-title">Portal de <span>Convocatorias</span></div>
+    <div class="welcome">Bienvenido: <strong id="userDisplay">Cargando...</strong></div>
+  </div>
+
+  <!-- ===== Main Content ===== -->
+  <div class="dashboard-content">
+    <h2>Convocatorias Públicas</h2>
+    <p class="subtitle">Explora y selecciona las convocatorias de tu interés</p>
+
+    <!-- ===== Loading Overlay ===== -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Cargando convocatorias...</div>
+  </div>
+
+    <!-- ===== Filter Bar ===== -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label for="filtroNombre">Nombre procedimiento</label>
+        <input type="text" id="filtroNombre" placeholder="Ej: Convocatoria DSNFT...">
+      </div>
+      <div class="filter-group">
+        <label for="filtroCodigo">Código del procedimiento</label>
+        <input type="text" id="filtroCodigo" placeholder="Ej: CO1.REQ.2577563">
+      </div>
+      <div class="filter-group">
+        <label for="filtroEntidad">Entidad</label>
+        <input type="text" id="filtroEntidad" placeholder="Ej: DANE">
+      </div>
+      <div class="filter-group">
+        <label for="filtroNit">Nit entidad</label>
+        <input type="text" id="filtroNit" placeholder="Ej: 899999027">
+      </div>
+      <div class="filter-group">
+        <label for="filtroCiudad">Ciudad</label>
+        <input type="text" id="filtroCiudad" placeholder="Ej: Bogotá">
+      </div>
+      <button class="btn-filter" id="btnFiltrar">Filtrar</button>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Nombre del Procedimiento</th>
+            <th>Entidad</th>
+            <th>ID del Proceso</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="proposalsBody">
+          <tr>
+            <td colspan="6" style="text-align:center;padding:40px;color:#7a7a8e;">Cargando convocatorias...</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ===== Pagination ===== -->
+      <div class="pagination-bar">
+        <div class="info" id="pageInfo">Cargando...</div>
+        <div class="pagination-controls">
+          <button id="btnPrev" disabled>&laquo; Anterior</button>
+          <span id="pageNum" style="padding:6px 12px;font-size:13px;color:#4A4466;font-weight:600;">Página 1</span>
+          <button id="btnNext" disabled>Siguiente &raquo;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Floating Save Button ===== -->
+  <button class="btn-save-float" id="btnGuardar" disabled>
+    <span class="icon">&#128190;</span> Guardar...
+  </button>
+
+  <!-- ===== Floating Nav Button ===== -->
+  <button class="btn-save-float btn-nav-saved" id="btnVerGuardadas" onclick="window.location.href='saved-proposals.html'">
+    <span class="icon">&#128196;</span> Ver Convocatorias Guardadas
+  </button>
+
+  <!-- ===== Floating Detail Modal ===== -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeDetail()">&times;</button>
+      <h3 id="modalTitle">Detalle de Convocatoria</h3>
+      <div class="detail-grid" id="detailGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

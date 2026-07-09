@@ -1,0 +1,23 @@
+[
+  {
+    "model": "gpt-5.5",
+    "model_id": "openai/gpt-5.5",
+    "file": "public_calls_database_gpt55.sql",
+    "status": "ok",
+    "chars": 9587
+  },
+  {
+    "model": "deepseek/deepseek-v4-pro",
+    "model_id": "deepseek/deepseek-v4-pro",
+    "file": "public_calls_database_v4pro.sql",
+    "status": "ok",
+    "chars": 7488
+  },
+  {
+    "model": "GLM 4.7 Flash",
+    "model_id": "z-ai/glm-4.7-flash",
+    "file": "public_calls_database_glm47.sql",
+    "status": "ok",
+    "chars": 6950
+  }
+]
