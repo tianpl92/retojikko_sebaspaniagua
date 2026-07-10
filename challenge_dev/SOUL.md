@@ -206,6 +206,19 @@ Repository URL:
 
 https://github.com/tianpl92/retojikko_sebaspaniagua/tree/main/challenge_dev
 
+### 7.1 Documentation and reference paths
+
+The following references capture the main project documentation and the specification trail that guided the delivery process:
+
+- Main project README:
+  https://github.com/tianpl92/retojikko_sebaspaniagua/blob/main/challenge_dev/README.md
+- Backend README:
+  https://github.com/tianpl92/retojikko_sebaspaniagua/blob/main/challenge_dev/backend/README.md
+- Spec documents directory:
+  https://github.com/tianpl92/retojikko_sebaspaniagua/tree/main/challenge_dev/specs_project/
+
+These paths are useful as the canonical entry points for understanding the repository structure, local execution instructions, and the specification sequence used during implementation.
+
 ---
 
 ## Appendix: executive summary
